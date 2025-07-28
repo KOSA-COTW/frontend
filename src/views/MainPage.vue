@@ -79,7 +79,7 @@ const categories = [
   </div>
 
   <!-- 카드 목록 -->
-  <div style="padding: 20px">
+  <div>
     <a-row :gutter="16">
       <a-col
     v-for="item in donationItems"
