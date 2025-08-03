@@ -1,6 +1,10 @@
+
 import { createRouter, createWebHistory } from 'vue-router'
 import MainPage from '@/views/MainPage.vue'
 import PostCreateView from '@/views/board/PostCreateView.vue'
+import SignupView from '@/views/member/SignupView.vue'
+import LoginView from '@/views/member/LoginView.vue'
+import MyPageView from '@/views/member/MyPageView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -20,6 +24,22 @@ const router = createRouter({
       name: 'postList',
       component: () => import('@/views/board/PostListView.vue')
     },
+    {
+      path: '/signup',
+      name: 'signup',
+      component: SignupView
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView
+    },
+    {
+      path: '/mypage',
+      name: 'mypage',
+      component: MyPageView
+    },
+
   ],
 })
 

@@ -13,6 +13,9 @@
         <a-menu-item key="login">
           <router-link to="/login">로그인</router-link>
         </a-menu-item>
+        <a-menu-item key="signup">
+          <router-link to="/signup">회원가입</router-link>
+        </a-menu-item>
       </a-menu>
     </div>
   </div>
@@ -30,6 +33,7 @@ watch(
   (path) => {
     if (path.startsWith('/donations')) selectedKey.value = 'donate'
     else if (path.startsWith('/login')) selectedKey.value = 'login'
+    else if (path.startsWith('/signup')) selectedKey.value = 'signup'
     else selectedKey.value = 'home'
   },
   { immediate: true }
