@@ -1,58 +1,15 @@
 <script setup>
+import { useCounterStore } from '@/stores/counter'
 import { Progress } from 'ant-design-vue'
+import { useRouter } from 'vue-router'
 
-const totalDonation = '9,999,999,999원'
+const router = useRouter()
+const store = useCounterStore()
+const donationItems = store.donations
 
-const donationItems = [
-  {
-    id: 1,
-    image: 'https://picsum.photos/400/200?random=1',
-    category: '아동',
-    title: '전라북도 전주시 새누리지역아동센터 아이들 28명에게 따뜻한 간식을',
-    percent: 79.4,
-    remaining: '마감까지 103,700원',
-  },
-  {
-    id: 2,
-    image: 'https://picsum.photos/400/200?random=2',
-    category: '장애인',
-    title: '서울시 중랑구 해오름지역아동센터 장애 아동들에게 안전한 교통비를',
-    percent: 52.1,
-    remaining: '마감까지 51,200원',
-  },
-  {
-    id: 3,
-    image: 'https://picsum.photos/400/200?random=3',
-    category: '어르신',
-    title: '부산시 사하구 사랑지역아동센터 어르신들께 건강 검진비를',
-    percent: 92.6,
-    remaining: '마감까지 12,800원',
-  },
-  {
-    id: 4,
-    image: 'https://picsum.photos/400/200?random=4',
-    category: '동물',
-    title: '대전시 서구 아람지역 내 유기동물 보호소에 사료와 의약품을',
-    percent: 33.3,
-    remaining: '마감까지 80,000원',
-  },
-  {
-    id: 5,
-    image: 'https://picsum.photos/400/200?random=5',
-    category: '환경',
-    title: '경기도 수원시 하늘지역 환경 정화 활동에 필요한 물품을',
-    percent: 45.7,
-    remaining: '마감까지 60,300원',
-  },
-  {
-    id: 6,
-    image: 'https://picsum.photos/400/200?random=6',
-    category: '지구촌',
-    title: '인천시 연수구 드림지역 아이들에게 지구촌 교육 지원을',
-    percent: 67.2,
-    remaining: '마감까지 42,600원',
-  },
-]
+// 총 기부금 합계 계산 (동적)
+const totalDonation = donationItems.reduce((sum, item) => sum + item.raised, 0).toLocaleString() + '원'
+
 const categories = [
   { id: 1, name: '아동', icon: 'https://cdn-icons-png.flaticon.com/512/921/921347.png' },
   { id: 2, name: '장애인', icon: 'https://cdn-icons-png.flaticon.com/512/8731/8731087.png' },
@@ -63,6 +20,10 @@ const categories = [
   { id: 7, name: '사회', icon: 'https://cdn-icons-png.flaticon.com/512/14931/14931623.png' }
 ]
 
+// 상세페이지 이동 함수
+function goDetail(id) {
+  router.push({ name: 'postDetail', params: { id } })
+}
 </script>
 
 <template>
@@ -82,21 +43,26 @@ const categories = [
   <div>
     <a-row :gutter="16">
       <a-col
-    v-for="item in donationItems"
-    :key="item.id"
-    :xs="24"
-    :sm="12"
-    :md="8"
-    :lg="8"
-    :xl="8"
-  >
-        <a-card :hoverable="true" class="custom-card" :bordered="false">
+        v-for="item in donationItems"
+        :key="item.id"
+        :xs="24"
+        :sm="12"
+        :md="8"
+        :lg="8"
+        :xl="8"
+      >
+        <a-card
+          :hoverable="true"
+          class="custom-card"
+          :bordered="false"
+          @click="goDetail(item.id)"
+          style="cursor:pointer"
+        >
           <img :src="item.image" class="donation-image" />
 
           <div class="donation-text">
             <div class="category">#{{ item.category }}</div>
             <div class="title">{{ item.title }}</div>
-
             <Progress
               :percent="item.percent"
               :stroke-color="'#00C851'"
@@ -104,8 +70,8 @@ const categories = [
               style="margin-top: 10px"
             />
             <div class="bottom-info">
-              <span class="remaining">{{ item.remaining }}</span>
-              <span class="percent">{{ item.percent }}%</span>
+              <span class="remaining">마감까지 {{ (item.target - item.raised).toLocaleString() }}원</span>
+              <span class="percent">{{ ((item.raised / item.target) * 100).toFixed(1) }}%</span>
             </div>
           </div>
         </a-card>
@@ -113,42 +79,42 @@ const categories = [
     </a-row>
   </div>
 
-  <!-- 이벤트 배너 영역 -->
-<div class="event-banner-section">
-  <a-row :gutter="16">
-    <a-col :span="12">
-      <div class="event-banner pink-banner">
-        <div>
-          <div class="banner-title">Center of the World 알림 신청하고</div>
-          <div class="banner-subtitle">기부포인트 3,000P 받기 &gt;</div>
+  <!-- 이벤트 배너 영역 (생략 가능, 예시 그대로 사용) -->
+  <div class="event-banner-section">
+    <a-row :gutter="16">
+      <a-col :span="12">
+        <div class="event-banner pink-banner">
+          <div>
+            <div class="banner-title">Center of the World 알림 신청하고</div>
+            <div class="banner-subtitle">기부포인트 3,000P 받기 &gt;</div>
+          </div>
+          <img src="https://cdn-icons-png.flaticon.com/512/833/833472.png" class="banner-icon" />
         </div>
-        <img src="https://cdn-icons-png.flaticon.com/512/833/833472.png" class="banner-icon" />
-      </div>
-    </a-col>
-    <a-col :span="12">
-      <div class="event-banner dark-banner">
-        <div>
-          <div class="banner-title">친구 초대하고 기부포인트 받기</div>
-          <div class="banner-subtitle">이벤트 보러가기 &gt;</div>
+      </a-col>
+      <a-col :span="12">
+        <div class="event-banner dark-banner">
+          <div>
+            <div class="banner-title">친구 초대하고 기부포인트 받기</div>
+            <div class="banner-subtitle">이벤트 보러가기 &gt;</div>
+          </div>
+          <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="banner-icon" />
         </div>
-        <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="banner-icon" />
+      </a-col>
+    </a-row>
+  </div>
+
+  <!-- 카테고리 리스트 -->
+  <div class="category-section">
+    <div class="category-title">카테고리</div>
+    <div class="category-list">
+      <div v-for="category in categories" :key="category.id" class="category-item">
+        <div class="circle-icon">
+          <img :src="category.icon" alt="icon" />
+        </div>
+        <div class="category-name">{{ category.name }}</div>
       </div>
-    </a-col>
-  </a-row>
-</div>
-<!-- 카테고리 리스트 -->
-<div class="category-section">
-  <div class="category-title">카테고리</div>
-  <div class="category-list">
-    <div v-for="category in categories" :key="category.id" class="category-item">
-      <div class="circle-icon">
-        <img :src="category.icon" alt="icon" />
-      </div>
-      <div class="category-name">{{ category.name }}</div>
     </div>
   </div>
-</div>
-
 </template>
 
 <style scoped>
@@ -274,7 +240,7 @@ const categories = [
   justify-content: center;
   gap: clamp(12px, 3vw, 40px);
   padding-bottom: 10px;
-  flex-wrap: wrap;        
+  flex-wrap: wrap;
 }
 
 .category-item {
@@ -305,3 +271,4 @@ const categories = [
 }
 
 </style>
+
