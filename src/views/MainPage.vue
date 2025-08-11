@@ -1,15 +1,37 @@
 <script setup>
+import { computed } from 'vue'
 import { useCounterStore } from '@/stores/counter'
+import { storeToRefs } from 'pinia'
 import { Progress } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const store = useCounterStore()
-const donationItems = store.donations
 
-// 총 기부금 합계 계산 (동적)
-const totalDonation = donationItems.reduce((sum, item) => sum + item.raised, 0).toLocaleString() + '원'
+// Pinia refs를 안전하게 분해 (반응성 유지)
+const {
+  filteredDonations,
+  totalDonationFiltered,
+  selectedCategory
+} = storeToRefs(store)
 
+// v-for용 목록 / 총합
+const donationItems = filteredDonations
+const totalDonation = computed(() => totalDonationFiltered.value.toLocaleString() + '원')
+
+// 카테고리 클릭(같은 것 재클릭 시 전체로)
+function onClickCategory(name) {
+  selectedCategory.value === name
+    ? store.clearCategory()
+    : store.setCategory(name)
+}
+
+// 상세페이지 이동
+function goDetail(id) {
+  router.push({ name: 'postDetail', params: { id } })
+}
+
+// 카테고리 목록 (그대로)
 const categories = [
   { id: 1, name: '아동', icon: 'https://cdn-icons-png.flaticon.com/512/921/921347.png' },
   { id: 2, name: '장애인', icon: 'https://cdn-icons-png.flaticon.com/512/8731/8731087.png' },
@@ -19,11 +41,6 @@ const categories = [
   { id: 6, name: '지구촌', icon: 'https://cdn-icons-png.flaticon.com/512/10218/10218091.png' },
   { id: 7, name: '사회', icon: 'https://cdn-icons-png.flaticon.com/512/14931/14931623.png' }
 ]
-
-// 상세페이지 이동 함수
-function goDetail(id) {
-  router.push({ name: 'postDetail', params: { id } })
-}
 </script>
 
 <template>
@@ -37,6 +54,13 @@ function goDetail(id) {
         <h2 class="amount">{{ totalDonation }}</h2>
       </a-col>
     </a-row>
+    <!-- 선택된 카테고리 안내 + 전체보기 -->
+    <div v-if="store.selectedCategory" style="margin-top:.5rem;font-size:.9rem;">
+      현재 카테고리: <b>{{ store.selectedCategory }}</b>
+      <a @click="store.clearCategory()" style="margin-left:8px; color:#fff; text-decoration:underline; cursor:pointer;">
+        전체보기
+      </a>
+    </div>
   </div>
 
   <!-- 카드 목록 -->
@@ -79,14 +103,14 @@ function goDetail(id) {
     </a-row>
   </div>
 
-  <!-- 이벤트 배너 영역 (생략 가능, 예시 그대로 사용) -->
+  <!-- 소개/공지 배너 (그대로) -->
   <div class="event-banner-section">
     <a-row :gutter="16">
       <a-col :span="12">
         <div class="event-banner pink-banner">
           <div>
-            <div class="banner-title">Center of the World 알림 신청하고</div>
-            <div class="banner-subtitle">기부포인트 3,000P 받기 &gt;</div>
+            <div class="banner-title">세상의 중심은 어디일까요?</div>
+            <div class="banner-subtitle">힘들어 하는 사람의 손을 잡아주는 곳, 바로 그곳이 세상의 중심입니다. &gt;</div>
           </div>
           <img src="https://cdn-icons-png.flaticon.com/512/833/833472.png" class="banner-icon" />
         </div>
@@ -94,8 +118,8 @@ function goDetail(id) {
       <a-col :span="12">
         <div class="event-banner dark-banner">
           <div>
-            <div class="banner-title">친구 초대하고 기부포인트 받기</div>
-            <div class="banner-subtitle">이벤트 보러가기 &gt;</div>
+            <div class="banner-title">공지사항</div>
+            <div class="banner-subtitle">커뮤니티 이용 규칙 안내 &gt;</div>
           </div>
           <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" class="banner-icon" />
         </div>
@@ -107,12 +131,18 @@ function goDetail(id) {
   <div class="category-section">
     <div class="category-title">카테고리</div>
     <div class="category-list">
-      <div v-for="category in categories" :key="category.id" class="category-item">
+      <button
+        v-for="category in categories"
+        :key="category.id"
+        class="category-item"
+        :class="{ active: selectedCategory === category.name }"
+        @click="onClickCategory(category.name)"
+      >
         <div class="circle-icon">
           <img :src="category.icon" alt="icon" />
         </div>
         <div class="category-name">{{ category.name }}</div>
-      </div>
+      </button>
     </div>
   </div>
 </template>
@@ -127,17 +157,8 @@ function goDetail(id) {
   max-width: 100%;
   margin: 2rem auto;
 }
-
-.label {
-  font-size: 1.1rem;
-  margin-right: 1rem;
-  font-weight: 500;
-}
-
-.amount {
-  font-size: 2rem;
-  margin: 0;
-}
+.label { font-size: 1.1rem; margin-right: 1rem; font-weight: 500; }
+.amount { font-size: 2rem; margin: 0; }
 
 .custom-card {
   padding: 0;
@@ -146,129 +167,51 @@ function goDetail(id) {
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
   margin-bottom: 30px;
 }
-
 .donation-image {
-  width: 100%;
-  height: 180px;
-  object-fit: cover;
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
+  width: 100%; height: 180px; object-fit: cover;
+  border-top-left-radius: 12px; border-top-right-radius: 12px;
 }
+.donation-text { padding: 12px 16px; background-color: white; }
+.category { color: #00C851; font-weight: bold; margin-bottom: 4px; font-size: 0.9rem; }
+.title { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
+.bottom-info { display: flex; justify-content: space-between; margin-top: 4px; color: #777; font-size: 0.85rem; }
+.percent { color: #00C851; font-weight: bold; }
 
-.donation-text {
-  padding: 12px 16px;
-  background-color: white;
-}
-
-.category {
-  color: #00C851;
-  font-weight: bold;
-  margin-bottom: 4px;
-  font-size: 0.9rem;
-}
-
-.title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
-.bottom-info {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 4px;
-  color: #777;
-  font-size: 0.85rem;
-}
-
-.percent {
-  color: #00C851;
-  font-weight: bold;
-}
-.event-banner-section {
-  margin: 40px 20px;
-}
-
+.event-banner-section { margin: 40px 20px; }
 .event-banner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  border-radius: 12px;
-  color: white;
-  height: 100px;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px; border-radius: 12px; color: white; height: 100px;
 }
+.pink-banner { background-color: #f9848a; }
+.dark-banner { background-color: #2e2e2e; }
+.banner-title { font-size: 1rem; font-weight: bold; }
+.banner-subtitle { font-size: 0.85rem; margin-top: 4px; color: #fff; opacity: 0.9; }
+.banner-icon { width: 50px; height: 50px; }
 
-.pink-banner {
-  background-color: #f9848a;
-}
-
-.dark-banner {
-  background-color: #2e2e2e;
-}
-
-.banner-title {
-  font-size: 1rem;
-  font-weight: bold;
-}
-
-.banner-subtitle {
-  font-size: 0.85rem;
-  margin-top: 4px;
-  color: #fff;
-  opacity: 0.9;
-}
-
-.banner-icon {
-  width: 50px;
-  height: 50px;
-}
-.category-section {
-  background-color: #fcfcf6;
-  padding: 30px 20px 10px;
-  margin-bottom: 30px;
-}
-
-.category-title {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin-bottom: 20px;
-}
-
+.category-section { background-color: #fcfcf6; padding: 30px 20px 10px; margin-bottom: 30px; }
+.category-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; }
 .category-list {
-  display: flex;
-  justify-content: center;
-  gap: clamp(12px, 3vw, 40px);
-  padding-bottom: 10px;
-  flex-wrap: wrap;
+  display: flex; justify-content: center; gap: clamp(12px, 3vw, 40px);
+  padding-bottom: 10px; flex-wrap: wrap;
 }
 
+/*  클릭 가능 & 활성화 표시 */
 .category-item {
-  flex: 0 0 auto;
+  all: unset;
+  cursor: pointer;
+  display: inline-block;
   text-align: center;
   width: 80px;
 }
+.category-item.active .circle-icon { box-shadow: 0 0 0 3px rgba(0,200,81,.25); }
+.category-item.active .category-name { color:#00C851; font-weight:700; }
 
 .circle-icon {
-  width: 60px;
-  height: 60px;
-  background-color: white;
-  border-radius: 50%;
+  width: 60px; height: 60px; background-color: white; border-radius: 50%;
   box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   margin: 0 auto 6px;
 }
-
-.circle-icon img {
-  width: 32px;
-  height: 32px;
-}
-
-.category-name {
-  font-size: 0.8rem;
-}
-
+.circle-icon img { width: 32px; height: 32px; }
+.category-name { font-size: 0.8rem; }
 </style>
-
