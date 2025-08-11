@@ -125,6 +125,27 @@ export const useCounterStore = defineStore('counter', () => {
     },
   ])
 
+  // 선택된 카테고리 (null이면 전체)
+  const selectedCategory = ref(null)
+
+  // 필터된 목록
+  const filteredDonations = computed(() => {
+    if (!selectedCategory.value) return donations.value
+    return donations.value.filter(d => d.category === selectedCategory.value)
+  })
+
+  // 합계(전체/필터 반영)
+  const totalDonationAll = computed(() =>
+    donations.value.reduce((sum, d) => sum + d.raised, 0)
+  )
+  const totalDonationFiltered = computed(() =>
+    filteredDonations.value.reduce((sum, d) => sum + d.raised, 0)
+  )
+
+  // 액션
+  function setCategory(name) { selectedCategory.value = name }
+  function clearCategory() { selectedCategory.value = null }
+
   // id로 상세 게시글 조회 (computed 반환)
   function getDonationById(id) {
     return computed(() => donations.value.find(item => item.id === Number(id)))
@@ -139,5 +160,10 @@ export const useCounterStore = defineStore('counter', () => {
     increment,
     donations,
     getDonationById,
+    selectedCategory,
+    filteredDonations,
+    totalDonationAll,
+    totalDonationFiltered,
+    setCategory, clearCategory,
   }
 })
