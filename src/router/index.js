@@ -1,7 +1,6 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 import MainPage from '@/views/MainPage.vue'
-import PostCreateView from '@/views/board/PostCreateView.vue'
 import SignupView from '@/views/member/SignupView.vue'
 import LoginView from '@/views/member/LoginView.vue'
 import MyPageView from '@/views/member/MyPageView.vue'
@@ -49,14 +48,14 @@ const router = createRouter({
     {
       path: '/error/:type',
       name: 'Error',
-      component: () => import('@/views/ErrorPage.vue'),
+      component: () => import('@/views/error/ErrorPage.vue'),
       props: true
     },
     // 404 catch-all (마지막에 위치)
     {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
-      component: () => import('@/views/ErrorPage.vue'),
+      component: () => import('@/views/error/ErrorPage.vue'),
       props: { errorType: '404' }
     }
   ],
