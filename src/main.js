@@ -16,4 +16,15 @@ app.use(router)
 
 app.use(Antd)
 
+// main.js에서 전역 에러 핸들러 설정
+app.config.errorHandler = (err, instance, info) => {
+  console.error('Global error:', err)
+
+  // 라우터를 통해 에러 페이지로 이동
+  router.push({
+    name: 'Error',
+    params: { type: '500' }
+  })
+}
+
 app.mount('#app')
