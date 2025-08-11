@@ -39,15 +39,26 @@ const router = createRouter({
       name: 'mypage',
       component: MyPageView
     },
-
-
     {
       path: '/posts/:id',
       name: 'postDetail',
       component: () => import('@/views/board/PostDetailView.vue'),
       props: true,
     },
-
+    // 특정 에러 타입별 라우트
+    {
+      path: '/error/:type',
+      name: 'Error',
+      component: () => import('@/views/ErrorPage.vue'),
+      props: true
+    },
+    // 404 catch-all (마지막에 위치)
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'NotFound',
+      component: () => import('@/views/ErrorPage.vue'),
+      props: { errorType: '404' }
+    }
   ],
 })
 
