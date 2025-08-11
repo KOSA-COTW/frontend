@@ -33,23 +33,23 @@
           <a-input v-model:value="formData.name" placeholder="이름을 입력하세요" size="large" />
         </a-form-item>
 
-        <a-form-item label="휴대폰 번호" name="phone">
-          <a-space class="phone-space">
-            <a-input v-model:value="formData.phone" placeholder="휴대폰 번호를 입력하세요" size="large" />
-            <a-button @click="sendVerificationCode" :loading="sendingCode" size="large" type="primary" class="primary-btn">인증번호 전송</a-button>
-          </a-space>
-        </a-form-item>
+<!--        <a-form-item label="휴대폰 번호" name="phone">-->
+<!--          <a-space class="phone-space">-->
+<!--            <a-input v-model:value="formData.phone" placeholder="휴대폰 번호를 입력하세요" size="large" />-->
+<!--            <a-button @click="sendVerificationCode" :loading="sendingCode" size="large" type="primary" class="primary-btn">인증번호 전송</a-button>-->
+<!--          </a-space>-->
+<!--        </a-form-item>-->
 
-        <a-form-item v-if="showVerificationInput" label="인증번호" name="verificationCode">
-          <a-space class="phone-space">
-            <a-input v-model:value="formData.verificationCode" placeholder="인증번호를 입력하세요" size="large" />
-            <div class="countdown-text">{{ formatTime(remainingTime) }}</div>
-          </a-space>
-        </a-form-item>
+<!--        <a-form-item v-if="showVerificationInput" label="인증번호" name="verificationCode">-->
+<!--          <a-space class="phone-space">-->
+<!--            <a-input v-model:value="formData.verificationCode" placeholder="인증번호를 입력하세요" size="large" />-->
+<!--            <div class="countdown-text">{{ formatTime(remainingTime) }}</div>-->
+<!--          </a-space>-->
+<!--        </a-form-item>-->
 
-        <a-form-item label="추천인 코드" name="referralCode">
-          <a-input v-model:value="formData.referralCode" placeholder="추천인 코드가 있다면 입력하세요" size="large" />
-        </a-form-item>
+<!--        <a-form-item label="추천인 코드" name="referralCode">-->
+<!--          <a-input v-model:value="formData.referralCode" placeholder="추천인 코드가 있다면 입력하세요" size="large" />-->
+<!--        </a-form-item>-->
 
         <a-card size="small" class="info-card">
           <h3>수집정보</h3>
@@ -100,187 +100,185 @@
 </template>
 
 
-<script>
+<script setup>
 import { reactive, ref, computed, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
+import axios from 'axios'
+import { useRouter } from 'vue-router'
 
-export default {
-  name: 'SignupPage',
-  setup() {
-    const signupFormRef = ref(null)
-    const sendingCode = ref(false)
-    const submitting = ref(false)
-    const showVerificationInput = ref(false)
-    const remainingTime = ref(180) // 3분
-    let timer = null
+const router = useRouter()
+  const signupFormRef = ref(null)
+  const sendingCode = ref(false)
+  const submitting = ref(false)
+  const showVerificationInput = ref(false)
+  const remainingTime = ref(180) // 3분
+  let timer = null
 
-    const formData = reactive({
-      email: '',
-      password: '',
-      confirmPassword: '',
-      name: '',
-      phone: '',
-      verificationCode: '',
-      referralCode: '',
-      agreements: []
-    })
+  const formData = reactive({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    name: '',
+    phone: '',
+    verificationCode: '',
+    referralCode: '',
+    agreements: []
+  })
 
-    const validationRules = {
-      email: [
-        { required: true, message: '이메일을 입력하세요', trigger: 'blur' },
-        { type: 'email', message: '올바른 이메일 형식이 아닙니다', trigger: 'blur' }
-      ],
-      password: [
-        { required: true, message: '비밀번호를 입력하세요', trigger: 'blur' },
-        { min: 8, message: '비밀번호는 8자 이상이어야 합니다', trigger: 'blur' }
-      ],
-      confirmPassword: [
-        { required: true, message: '비밀번호 확인을 입력하세요', trigger: 'blur' },
-        {
-          validator: (_, value) => {
-            if (value && value !== formData.password) {
-              return Promise.reject('비밀번호가 일치하지 않습니다')
-            }
-            return Promise.resolve()
-          },
-          trigger: 'blur'
-        }
-      ],
-      name: [
-        { required: true, message: '이름을 입력하세요', trigger: 'blur' }
-      ],
-      phone: [
-        { required: true, message: '휴대폰 번호를 입력하세요', trigger: 'blur' },
-        { pattern: /^01[0-9]-?[0-9]{4}-?[0-9]{4}$/, message: '올바른 휴대폰 번호를 입력하세요', trigger: 'blur' }
-      ],
-      agreements: [
-        {
-          validator: (_, value) => {
-            if (!value.includes('terms') || !value.includes('privacy')) {
-              return Promise.reject('필수 약관에 동의해야 합니다')
-            }
-            return Promise.resolve()
-          },
-          trigger: 'change'
-        }
-      ]
-    }
-
-    const isAllAgreed = computed(() => {
-      return formData.agreements.length === 3 &&
-        formData.agreements.includes('terms') &&
-        formData.agreements.includes('privacy') &&
-        formData.agreements.includes('marketing')
-    })
-
-    const formatTime = (seconds) => {
-      const mins = Math.floor(seconds / 60)
-      const secs = seconds % 60
-      return `${mins}:${secs.toString().padStart(2, '0')}`
-    }
-
-    const startTimer = () => {
-      timer = setInterval(() => {
-        remainingTime.value--
-        if (remainingTime.value <= 0) {
-          clearInterval(timer)
-          showVerificationInput.value = false
-          message.warning('인증시간이 만료되었습니다. 다시 시도해주세요.')
-        }
-      }, 1000)
-    }
-
-    const sendVerificationCode = async () => {
-      if (!formData.phone) {
-        message.warning('휴대폰 번호를 입력해주세요')
-        return
+  const validationRules = {
+    email: [
+      { required: true, message: '이메일을 입력하세요', trigger: 'blur' },
+      { type: 'email', message: '올바른 이메일 형식이 아닙니다', trigger: 'blur' }
+    ],
+    password: [
+      { required: true, message: '비밀번호를 입력하세요', trigger: 'blur' },
+      { min: 8, message: '비밀번호는 8자 이상이어야 합니다', trigger: 'blur' }
+    ],
+    confirmPassword: [
+      { required: true, message: '비밀번호 확인을 입력하세요', trigger: 'blur' },
+      {
+        validator: (_, value) => {
+          if (value && value !== formData.password) {
+            return Promise.reject('비밀번호가 일치하지 않습니다')
+          }
+          return Promise.resolve()
+        },
+        trigger: 'blur'
       }
-
-      if (!/^01[0-9]-?[0-9]{4}-?[0-9]{4}$/.test(formData.phone)) {
-        message.warning('올바른 휴대폰 번호를 입력해주세요')
-        return
+    ],
+    name: [
+      { required: true, message: '이름을 입력하세요', trigger: 'blur' }
+    ],
+    phone: [
+      { required: true, message: '휴대폰 번호를 입력하세요', trigger: 'blur' },
+      { pattern: /^01[0-9]-?[0-9]{4}-?[0-9]{4}$/, message: '올바른 휴대폰 번호를 입력하세요', trigger: 'blur' }
+    ],
+    agreements: [
+      {
+        validator: (_, value) => {
+          if (!value.includes('terms') || !value.includes('privacy')) {
+            return Promise.reject('필수 약관에 동의해야 합니다')
+          }
+          return Promise.resolve()
+        },
+        trigger: 'change'
       }
+    ]
+  }
 
-      sendingCode.value = true
+  const isAllAgreed = computed(() => {
+    return formData.agreements.length === 3 &&
+      formData.agreements.includes('terms') &&
+      formData.agreements.includes('privacy') &&
+      formData.agreements.includes('marketing')
+  })
 
-      try {
-        // API 호출 시뮬레이션
-        await new Promise(resolve => setTimeout(resolve, 1000))
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
 
-        showVerificationInput.value = true
-        remainingTime.value = 180
-        startTimer()
-        message.success('인증번호가 전송되었습니다')
-      } catch (error) {
-        message.error('인증번호 전송에 실패했습니다')
-      } finally {
-        sendingCode.value = false
-      }
-    }
-
-    const handleAgreementChange = (type, checked) => {
-      if (checked) {
-        if (!formData.agreements.includes(type)) {
-          formData.agreements.push(type)
-        }
-      } else {
-        const index = formData.agreements.indexOf(type)
-        if (index > -1) {
-          formData.agreements.splice(index, 1)
-        }
-      }
-    }
-
-    const handleAllAgreement = (e) => {
-      if (e.target.checked) {
-        formData.agreements = ['terms', 'privacy', 'marketing']
-      } else {
-        formData.agreements = []
-      }
-    }
-
-    const onSubmit = async (values) => {
-      submitting.value = true
-
-      try {
-        // API 호출 시뮬레이션
-        await new Promise(resolve => setTimeout(resolve, 2000))
-
-        message.success('회원가입이 완료되었습니다!')
-        console.log('회원가입 데이터:', values)
-
-        // 성공 후 폼 초기화 또는 페이지 이동
-        // router.push('/login')
-      } catch (error) {
-        message.error('회원가입에 실패했습니다. 다시 시도해주세요.')
-      } finally {
-        submitting.value = false
-      }
-    }
-
-    onUnmounted(() => {
-      if (timer) {
+  const startTimer = () => {
+    timer = setInterval(() => {
+      remainingTime.value--
+      if (remainingTime.value <= 0) {
         clearInterval(timer)
+        showVerificationInput.value = false
+        message.warning('인증시간이 만료되었습니다. 다시 시도해주세요.')
       }
-    })
+    }, 1000)
+  }
 
-    return {
-      signupFormRef,
-      formData,
-      validationRules,
-      sendingCode,
-      submitting,
-      showVerificationInput,
-      remainingTime,
-      isAllAgreed,
-      formatTime,
-      sendVerificationCode,
-      handleAgreementChange,
-      handleAllAgreement,
-      onSubmit
+  const sendVerificationCode = async () => {
+    if (!formData.phone) {
+      message.warning('휴대폰 번호를 입력해주세요')
+      return
+    }
+
+    if (!/^01[0-9]-?[0-9]{4}-?[0-9]{4}$/.test(formData.phone)) {
+      message.warning('올바른 휴대폰 번호를 입력해주세요')
+      return
+    }
+
+    sendingCode.value = true
+
+    try {
+      // API 호출 시뮬레이션
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      showVerificationInput.value = true
+      remainingTime.value = 180
+      startTimer()
+      message.success('인증번호가 전송되었습니다')
+    } catch (error) {
+      message.error('인증번호 전송에 실패했습니다')
+    } finally {
+      sendingCode.value = false
     }
   }
+
+  const handleAgreementChange = (type, checked) => {
+    if (checked) {
+      if (!formData.agreements.includes(type)) {
+        formData.agreements.push(type)
+      }
+    } else {
+      const index = formData.agreements.indexOf(type)
+      if (index > -1) {
+        formData.agreements.splice(index, 1)
+      }
+    }
+  }
+
+  const handleAllAgreement = (e) => {
+    if (e.target.checked) {
+      formData.agreements = ['terms', 'privacy', 'marketing']
+    } else {
+      formData.agreements = []
+    }
+  }
+
+const onSubmit = async () => {
+  submitting.value = true
+
+  try {
+    const payload = {
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+      // phone: formData.phone,
+      // verificationCode: formData.verificationCode,
+      // referralCode: formData.referralCode,
+      // agreements: formData.agreements
+    }
+
+    const response = await axios.post('/api/member/signup', payload,{
+      headers: {
+        'Content-type':'application/json'
+      }
+    }) // 프록시를 통해 백엔드로 전송
+
+    message.success('회원가입이 완료되었습니다!')
+    console.log('서버 응답:', response.data)
+
+    // 예: 페이지 이동
+    router.push('/login')
+
+  } catch (error) {
+    message.error('회원가입에 실패했습니다. 다시 시도해주세요.')
+    console.error('에러:', error)
+  } finally {
+    submitting.value = false
+  }
 }
+
+  onUnmounted(() => {
+    if (timer) {
+      clearInterval(timer)
+    }
+  })
+
 </script>
 
 <style scoped>
