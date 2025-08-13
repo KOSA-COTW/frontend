@@ -1,62 +1,3 @@
-<!--<template>-->
-<!--  <a-row justify="center" align="middle" style="min-height: 100vh;">-->
-<!--    <a-col :xs="22" :sm="20" :md="18" :lg="16" :xl="14">-->
-<!--      <a-card-->
-<!--        style="border-radius: 16px; padding: 0; overflow: hidden;"-->
-<!--        :bodyStyle="{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', padding: '0' }"-->
-<!--      >-->
-<!--        &lt;!&ndash; 로그인 영역 &ndash;&gt;-->
-<!--        <div style="flex: 1; padding: 40px; background: white;">-->
-<!--          <h2 style="margin-bottom: 30px;">로그인</h2>-->
-<!--          <a-form :model="form" layout="vertical" @submit.prevent="handleSubmit">-->
-<!--            <a-form-item label="이메일">-->
-<!--              <a-input v-model:value="form.email" placeholder="이메일 입력" />-->
-<!--            </a-form-item>-->
-<!--            <a-form-item label="비밀번호">-->
-<!--              <a-input-password v-model:value="form.password" placeholder="비밀번호 입력" />-->
-<!--            </a-form-item>-->
-<!--            <a-form-item>-->
-<!--              <a-checkbox v-model:checked="form.remember">이메일 기억하기</a-checkbox>-->
-<!--              <a style="float: right;" href="#">아이디/비밀번호 찾기</a>-->
-<!--            </a-form-item>-->
-<!--            <a-button-->
-<!--              block-->
-<!--              type="primary"-->
-<!--              html-type="submit"-->
-<!--              style="background-color: #1a1a1a; border-color: #1a1a1a; height: 45px; font-weight: bold;"-->
-<!--            >-->
-<!--              로그인-->
-<!--            </a-button>-->
-<!--&lt;!&ndash;            <a-button&ndash;&gt;-->
-<!--&lt;!&ndash;              block&ndash;&gt;-->
-<!--&lt;!&ndash;              style="background-color: #ffeb00; color: #000; margin-top: 10px; height: 45px; font-weight: bold;"&ndash;&gt;-->
-<!--&lt;!&ndash;            >&ndash;&gt;-->
-<!--&lt;!&ndash;              <template #icon><img src="https://developers.kakao.com/tool/resource/static/img/button/kakaologin/ko/kakao_login_medium_narrow.png" style="height: 16px;" /></template>&ndash;&gt;-->
-<!--&lt;!&ndash;              <template #icon><img src="https://developers.kakao.com/tool/resource/static/img/button/kakaologin/ko/kakao_login_medium_narrow.png" style="height: 16px;" /></template>&ndash;&gt;-->
-<!--&lt;!&ndash;              카카오톡 로그인&ndash;&gt;-->
-<!--&lt;!&ndash;            </a-button>&ndash;&gt;-->
-<!--          </a-form>-->
-<!--        </div>-->
-
-<!--        &lt;!&ndash; 회원가입 유도 영역 &ndash;&gt;-->
-<!--        <div-->
-<!--          style="flex: 1; background-color: #f5faf5; padding: 40px; text-align: center; display: flex; flex-direction: column; justify-content: center;"-->
-<!--        >-->
-<!--          <p style="font-size: 18px; font-weight: bold;">아직 회원이 아니신가요?</p>-->
-<!--          <p style="font-size: 16px; color: #333;">-->
-<!--            <span style="color: #f9a825; font-weight: bold;">마음이 그대로 전달</span>되는 💓 <br />-->
-<!--            가장 단순한 기부를 경험하세요!-->
-<!--          </p>-->
-<!--          <div style="margin-top: 20px;">-->
-<!--            <a-button type="default" style="border-color: #fbc02d; color: #fbc02d;" @click="goToSignUp">-->
-<!--              회원가입-->
-<!--            </a-button>-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </a-card>-->
-<!--    </a-col>-->
-<!--  </a-row>-->
-<!--</template>-->
 <template>
   <a-row justify="center" align="middle" class="login-wrapper">
     <a-col :xs="22" :sm="20" :md="18" :lg="16" :xl="14">
@@ -76,9 +17,10 @@
             </a-form-item>
             <a-form-item>
               <a-checkbox v-model:checked="form.remember">이메일 기억하기</a-checkbox>
-              <a class="forgot-link" href="#">아이디/비밀번호 찾기</a>
             </a-form-item>
-            <a-button block type="primary" html-type="submit" class="login-btn">로그인</a-button>
+            <a-button block type="primary" html-type="submit" class="login-btn" :loading="loading">
+              로그인
+            </a-button>
           </a-form>
         </div>
 
@@ -99,17 +41,24 @@
 </template>
 
 <script setup>
-import { reactive, computed, onMounted, watch } from 'vue';
-import axios from 'axios'
+import { reactive, computed, onMounted, watch, ref } from 'vue';
+import api from '@/utils/axios'
 import { message } from 'ant-design-vue'
-import {useRouter} from 'vue-router'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const loading = ref(false)
 
 const form = reactive({
   email: '',
   password: '',
   remember: false,
+});
+
+// 화면 크기 감지를 위한 computed
+const isMobile = computed(() => {
+  // 실제 구현에서는 window.innerWidth 등을 활용
+  return window.innerWidth <= 768;
 });
 
 // 초기 마운트 시 저장된 이메일 불러오기
@@ -144,30 +93,49 @@ watch(
 );
 
 const handleSubmit = async () => {
-  console.log('로그인 요청:', form);
-
-  try {
-    const response = await axios.post('/api/login', form, {
-      headers: {
-        "Content-type": "application/json"
-      }
-    })
-
-    message.success("로그인에 성공하셨습니다.")
-
-    const token = response.headers["authorization"]
-    localStorage.setItem("accessToken", token)
-    // 로그인 성공 시 home으로 이동
-    router.push('/')
-  }catch (error){
-    message.error("로그인에 실패하셨습니다. 다시 시도해주세요.")
-    console.error("에러:", error)
+  if (!form.email || !form.password) {
+    message.error('이메일과 비밀번호를 모두 입력해주세요.');
+    return;
   }
 
+  loading.value = true;
+
+  try {
+    const response = await api.post('/api/auth/login', {
+      email: form.email,
+      password: form.password
+    });
+
+    // JWT 토큰 저장 (응답 데이터에서 또는 헤더에서)
+    const accessToken = response.data.accessToken || response.headers.authorization;
+
+    if (accessToken) {
+      localStorage.setItem('accessToken', accessToken);
+      message.success('로그인에 성공하셨습니다.');
+
+      // 홈페이지로 리다이렉트
+      await router.push('/');
+    } else {
+      throw new Error('토큰을 받지 못했습니다.');
+    }
+
+  } catch (error) {
+    console.error('로그인 에러:', error);
+
+    if (error.response?.status === 401) {
+      message.error('이메일 또는 비밀번호가 올바르지 않습니다.');
+    } else if (error.response?.status === 400) {
+      message.error('입력 정보를 확인해주세요.');
+    } else {
+      message.error('로그인에 실패했습니다. 다시 시도해주세요.');
+    }
+  } finally {
+    loading.value = false;
+  }
 }
 
 function goToSignUp() {
-  window.location.href = '/signup';
+  router.push('/signup');
 }
 </script>
 
@@ -191,12 +159,6 @@ function goToSignUp() {
 
 .login-title {
   margin-bottom: 30px;
-}
-
-.forgot-link {
-  float: right;
-  text-decoration: none;
-  font-size: 0.9rem;
 }
 
 .login-btn {
@@ -279,13 +241,6 @@ function goToSignUp() {
 @media (max-width: 768px) {
   .login-card {
     flex-direction: column !important;
-  }
-
-  .forgot-link {
-    float: none;
-    display: block;
-    margin-top: 8px;
-    text-align: right;
   }
 }
 
