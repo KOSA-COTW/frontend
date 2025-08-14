@@ -38,7 +38,7 @@ function addComment() {
           <div>
             <div class="img-wrap">
               <img class="main-img" :src="post.image" />
-              <img class="cat-img" :src="catImgUrl" />
+
             </div>
           </div>
         </a-carousel>

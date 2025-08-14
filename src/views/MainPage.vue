@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useCounterStore } from '@/stores/counter'
 import { storeToRefs } from 'pinia'
 import { Progress } from 'ant-design-vue'
@@ -30,6 +30,12 @@ function onClickCategory(name) {
 function goDetail(id) {
   router.push({ name: 'postDetail', params: { id } })
 }
+
+// 페이지 로드시 API 호출
+onMounted(() => {
+  console.log('메인페이지 onMounted 실행됨')
+  store.fetchDonations()
+})
 
 // 카테고리 목록 (그대로)
 const categories = [

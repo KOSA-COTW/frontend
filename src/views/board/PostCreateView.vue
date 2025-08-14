@@ -1,105 +1,62 @@
 <script>
 import { reactive, ref, computed } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import dayjs from 'dayjs'
+import axios from 'axios'
 
 export default {
   name: 'DonationEditor',
   setup() {
     const form = reactive({
       title: '',
-      category: undefined,
-      goalAmount: '',
-      endDate: undefined,
-      contact: '',
+      category: undefined, // 백엔드 enum 값으로 전송
+      amount: '',          // 백엔드 필드명
       content: '',
       agreeTerms: false
     })
 
-    const previewImages = ref([])
+    const previewImages = ref([]) // { file, url(dataURL), name }
     const previewModal = ref(false)
     const submitting = ref(false)
     const fileInput = ref(null)
 
-    // Computed properties
-    const formatGoalAmount = computed(() => {
-      return form.goalAmount ? Number(form.goalAmount).toLocaleString() : '0'
-    })
+    // 표시용 포맷
+    const amountDisplay = computed(() =>
+      form.amount ? Number(form.amount).toLocaleString() : '0'
+    )
 
-    const formatEndDate = computed(() => {
-      return form.endDate ? form.endDate.format('YYYY년 MM월 DD일') : '미설정'
-    })
-
-    // Methods
+    // 입력 숫자만
     const formatAmount = (e) => {
-      let value = e.target.value.replace(/[^\d]/g, '')
-      form.goalAmount = value
+      form.amount = e.target.value.replace(/[^\d]/g, '')
     }
 
-    const disabledDate = (current) => {
-      return current && current < dayjs().endOf('day')
-    }
-
-    const triggerFileInput = () => {
-      fileInput.value.click()
-    }
+    // 파일 선택
+    const triggerFileInput = () => fileInput.value?.click()
 
     const handleFileSelect = (e) => {
-      const files = Array.from(e.target.files)
-
+      const files = Array.from(e.target.files || [])
       if (previewImages.value.length + files.length > 5) {
         message.warning('최대 5개의 이미지만 업로드할 수 있습니다.')
         return
       }
-
       files.forEach(file => {
         if (file.size > 10 * 1024 * 1024) {
           message.error(`${file.name}은 10MB를 초과합니다.`)
           return
         }
-
         const reader = new FileReader()
-        reader.onload = (e) => {
+        reader.onload = ev => {
           previewImages.value.push({
-            file: file,
-            url: e.target.result,
+            file,
+            url: ev.target.result, // data URL (임시)
             name: file.name
           })
         }
         reader.readAsDataURL(file)
       })
-
       e.target.value = ''
     }
 
-    const removeImage = (index) => {
-      previewImages.value.splice(index, 1)
-    }
-
-    const getCategoryText = (category) => {
-      const categories = {
-        medical: '의료비 지원',
-        education: '교육 지원',
-        disaster: '재해 복구',
-        animal: '동물 보호',
-        environment: '환경 보호',
-        community: '지역사회',
-        other: '기타'
-      }
-      return categories[category] || category
-    }
-
-    const saveDraft = () => {
-      const draftData = {
-        ...form,
-        images: previewImages.value,
-        savedAt: new Date().toISOString()
-      }
-
-      // TODO: 서버에 임시저장 API 호출
-      console.log('Draft saved:', draftData)
-      message.success('임시저장되었습니다.')
-    }
+    const removeImage = (idx) => previewImages.value.splice(idx, 1)
 
     const preview = () => {
       if (!form.title || !form.content) {
@@ -116,13 +73,11 @@ export default {
         okText: '초기화',
         cancelText: '취소',
         onOk() {
-          Object.keys(form).forEach(key => {
-            if (key === 'agreeTerms') {
-              form[key] = false
-            } else {
-              form[key] = key === 'goalAmount' ? '' : undefined
-            }
-          })
+          form.title = ''
+          form.category = undefined
+          form.amount = ''
+          form.content = ''
+          form.agreeTerms = false
           previewImages.value = []
           message.success('초기화되었습니다.')
         }
@@ -130,72 +85,75 @@ export default {
     }
 
     const validateForm = () => {
-      if (!form.title || !form.category || !form.goalAmount || !form.endDate || !form.content) {
+      if (!form.title || !form.category || !form.amount || !form.content) {
         message.error('필수 항목을 모두 입력해주세요.')
         return false
       }
-
       if (!form.agreeTerms) {
         message.error('이용약관에 동의해주세요.')
         return false
       }
-
-      if (form.content.length > 2000) {
-        message.error('내용은 2000자 이하로 입력해주세요.')
-        return false
-      }
-
       return true
     }
 
     const onSubmit = async () => {
-      if (!validateForm()) {
-        return
-      }
-
+      if (!validateForm()) return
       submitting.value = true
-
       try {
-        const submitData = {
-          ...form,
-          images: previewImages.value,
-          submittedAt: new Date().toISOString()
+        const imageUrls =
+          previewImages.value.length > 0
+            ? previewImages.value.map(i => i.url) // 임시: data URL 그대로
+            : ['https://placehold.co/600x400']     // 기본 이미지
+
+        const payload = {
+          title: form.title,
+          category: form.category,           // 예: 'CHILD'
+          amount: Number(form.amount),
+          content: form.content,
+          imageUrls
         }
 
-        // TODO: 실제 API 호출
-        console.log('Form submitted:', submitData)
-
-        // 시뮬레이션을 위한 딜레이
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        const accessToken = localStorage.getItem('accessToken')
+        const res = await axios.post('/api/posts', payload, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        })
 
         message.success('글이 성공적으로 등록되었습니다!')
-
-        // TODO: 성공 후 페이지 이동
-        // this.$router.push('/donations')
-
-      } catch (error) {
-        message.error('등록 중 오류가 발생했습니다. 다시 시도해주세요.')
-        console.error('Submit error:', error)
+        // 필요하면 라우팅: this.$router.push(`/posts/${res.data}`)
+        console.log('Created Post ID:', res.data)
+      } catch (err) {
+        console.error(err)
+        message.error('등록 중 오류가 발생했습니다.')
       } finally {
         submitting.value = false
       }
     }
 
+    // 카테고리 표시 텍스트
+    const categories = [
+      { value: 'CHILD', label: '아동' },
+      { value: 'DISABLED', label: '장애인' },
+      { value: 'SENIOR', label: '어르신' },
+      { value: 'ANIMAL', label: '동물' },
+      { value: 'ENVIRONMENT', label: '환경' },
+      { value: 'GLOBAL', label: '지구촌' },
+      { value: 'SOCIETY', label: '사회' }
+    ]
+
     return {
       form,
+      categories,
+      amountDisplay,
       previewImages,
       previewModal,
       submitting,
       fileInput,
-      formatGoalAmount,
-      formatEndDate,
       formatAmount,
-      disabledDate,
       triggerFileInput,
       handleFileSelect,
       removeImage,
-      getCategoryText,
-      saveDraft,
       preview,
       reset,
       onSubmit
@@ -240,13 +198,13 @@ export default {
                 placeholder="카테고리를 선택하세요"
                 size="large"
               >
-                <a-select-option value="medical">의료비 지원</a-select-option>
-                <a-select-option value="education">교육 지원</a-select-option>
-                <a-select-option value="disaster">재해 복구</a-select-option>
-                <a-select-option value="animal">동물 보호</a-select-option>
-                <a-select-option value="environment">환경 보호</a-select-option>
-                <a-select-option value="community">지역사회</a-select-option>
-                <a-select-option value="other">기타</a-select-option>
+                <a-select-option
+                  v-for="c in categories"
+                  :key="c.value"
+                  :value="c.value"
+                >
+                  {{ c.label }}
+                </a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
@@ -254,12 +212,12 @@ export default {
           <a-col :xs="24" :md="12">
             <a-form-item
               label="목표 금액"
-              name="goalAmount"
+              name="amount"
               :rules="[{ required: true, message: '목표 금액을 입력해주세요!' }]"
             >
               <a-input-group compact>
                 <a-input
-                  v-model:value="form.goalAmount"
+                  v-model:value="form.amount"
                   placeholder="1000000"
                   size="large"
                   style="width: calc(100% - 40px)"
@@ -267,34 +225,7 @@ export default {
                 />
                 <span class="currency-suffix">원</span>
               </a-input-group>
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <a-row :gutter="24">
-          <a-col :xs="24" :md="12">
-            <a-form-item
-              label="마감일"
-              name="endDate"
-              :rules="[{ required: true, message: '마감일을 선택해주세요!' }]"
-            >
-              <a-date-picker
-                v-model:value="form.endDate"
-                placeholder="마감일을 선택하세요"
-                size="large"
-                style="width: 100%"
-                :disabled-date="disabledDate"
-              />
-            </a-form-item>
-          </a-col>
-
-          <a-col :xs="24" :md="12">
-            <a-form-item label="연락처" name="contact">
-              <a-input
-                v-model:value="form.contact"
-                placeholder="연락 가능한 전화번호나 이메일"
-                size="large"
-              />
+              <div style="margin-top:6px;color:#888;">표시: {{ amountDisplay }}원</div>
             </a-form-item>
           </a-col>
         </a-row>
@@ -306,7 +237,7 @@ export default {
         >
           <a-textarea
             v-model:value="form.content"
-            placeholder="기부가 필요한 상황과 이유를 자세히 설명해주세요. 투명하고 진실한 내용일수록 더 많은 도움을 받을 수 있습니다."
+            placeholder="기부가 필요한 상황과 이유를 자세히 설명해주세요."
             class="content-textarea"
             :auto-size="{ minRows: 10, maxRows: 20 }"
           />
@@ -315,7 +246,7 @@ export default {
           </div>
         </a-form-item>
 
-        <a-form-item label="이미지 첨부">
+        <a-form-item label="이미지 첨부 (최대 5개)">
           <div class="image-upload-area" @click="triggerFileInput">
             <div class="upload-text">
               <p><strong>📷 이미지 업로드</strong></p>
@@ -349,14 +280,10 @@ export default {
 
       <div class="action-buttons">
         <div class="left-buttons">
-          <a-button size="large" @click="saveDraft">
-            💾 임시저장
-          </a-button>
           <a-button size="large" @click="preview">
             👁️ 미리보기
           </a-button>
         </div>
-
         <div class="right-buttons">
           <a-button size="large" @click="reset">
             🔄 초기화
@@ -384,10 +311,10 @@ export default {
       <div class="preview-content">
         <h2 class="preview-title">{{ form.title }}</h2>
         <div class="preview-info">
-          <p><strong>카테고리:</strong> {{ getCategoryText(form.category) }}</p>
-          <p><strong>목표 금액:</strong> {{ formatGoalAmount }}원</p>
-          <p><strong>마감일:</strong> {{ formatEndDate }}</p>
-          <p v-if="form.contact"><strong>연락처:</strong> {{ form.contact }}</p>
+          <p><strong>카테고리:</strong> {{
+            (categories.find(c => c.value === form.category)?.label) || '-'
+          }}</p>
+          <p><strong>목표 금액:</strong> {{ amountDisplay }}원</p>
         </div>
         <div class="preview-description">{{ form.content }}</div>
         <div v-if="previewImages.length > 0" class="preview-gallery">
@@ -409,221 +336,73 @@ export default {
   margin: 0 auto;
   padding: 24px;
 }
-
 .header {
   text-align: center;
   margin-bottom: 32px;
   padding: 24px 0;
   border-bottom: 2px solid #f0f0f0;
 }
-
 .header h1 {
   color: #00C851;
   font-size: 28px;
   margin: 0;
   font-weight: 600;
 }
-
 .form-section {
   background: white;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   padding: 32px;
 }
-
-.content-textarea {
-  min-height: 300px !important;
-  resize: vertical;
-}
-
-.character-count {
-  text-align: right;
-  margin-top: 8px;
-  color: #999;
-  font-size: 12px;
-}
-
+.content-textarea { min-height: 300px !important; resize: vertical; }
+.character-count { text-align: right; margin-top: 8px; color: #999; font-size: 12px; }
 .image-upload-area {
-  border: 2px dashed #d9d9d9;
-  border-radius: 6px;
-  padding: 24px;
-  text-align: center;
-  transition: border-color 0.3s;
-  cursor: pointer;
+  border: 2px dashed #d9d9d9; border-radius: 6px; padding: 24px;
+  text-align: center; transition: border-color .3s; cursor: pointer;
 }
-
-.image-upload-area:hover {
-  border-color: #00C851;
-}
-
-.upload-text {
-  color: #666;
-  font-size: 14px;
-}
-
-.upload-hint {
-  font-size: 12px !important;
-  color: #999 !important;
-}
-
+.image-upload-area:hover { border-color: #00C851; }
+.upload-text { color: #666; font-size: 14px; }
+.upload-hint { font-size: 12px !important; color: #999 !important; }
 .preview-images {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 16px;
+  display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px;
 }
-
 .preview-image {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid #d9d9d9;
+  position: relative; width: 120px; height: 120px; border-radius: 6px;
+  overflow: hidden; border: 1px solid #d9d9d9;
 }
-
-.preview-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
+.preview-image img { width: 100%; height: 100%; object-fit: cover; }
 .remove-image {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
+  position: absolute; top: 4px; right: 4px; background: rgba(255,255,255,.9);
+  border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 12px;
 }
-
 .currency-suffix {
-  background: #f5f5f5;
-  border: 1px solid #d9d9d9;
-  border-left: none;
-  padding: 4px 11px;
-  color: #666;
+  background: #f5f5f5; border: 1px solid #d9d9d9; border-left: none;
+  padding: 4px 11px; color: #666;
 }
-
-.action-buttons {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 32px;
-  gap: 16px;
-}
-
-.left-buttons,
-.right-buttons {
-  display: flex;
-  gap: 12px;
-}
-
-.preview-content {
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.preview-title {
-  color: #00C851;
-  margin-bottom: 16px;
-}
-
-.preview-info {
-  margin-bottom: 16px;
-  padding: 12px;
-  background: #f9f9f9;
-  border-radius: 6px;
-}
-
-.preview-info p {
-  margin: 0 0 8px 0;
-}
-
-.preview-info p:last-child {
-  margin-bottom: 0;
-}
-
-.preview-description {
-  white-space: pre-wrap;
-  line-height: 1.6;
-  margin-bottom: 16px;
-}
-
-.preview-gallery {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.preview-gallery-image {
-  width: 120px;
-  height: 120px;
-  object-fit: cover;
-  border-radius: 6px;
-}
-
-/* 반응형 디자인 */
+.action-buttons { display: flex; justify-content: space-between; margin-top: 32px; gap: 16px; }
+.left-buttons, .right-buttons { display: flex; gap: 12px; }
+.preview-content { max-height: 70vh; overflow-y: auto; }
+.preview-title { color: #00C851; margin-bottom: 16px; }
+.preview-info { margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-radius: 6px; }
+.preview-info p { margin: 0 0 8px 0; }
+.preview-description { white-space: pre-wrap; line-height: 1.6; margin-bottom: 16px; }
+.preview-gallery { display: flex; flex-wrap: wrap; gap: 8px; }
+.preview-gallery-image { width: 120px; height: 120px; object-fit: cover; border-radius: 6px; }
 @media (max-width: 768px) {
-  .editor-container {
-    padding: 16px;
-  }
-
-  .form-section {
-    padding: 20px;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-  }
-
-  .left-buttons,
-  .right-buttons {
-    justify-content: center;
-  }
+  .editor-container { padding: 16px; }
+  .form-section { padding: 20px; }
+  .action-buttons { flex-direction: column; }
+  .left-buttons, .right-buttons { justify-content: center; }
 }
 </style>
 
 <style>
-/* 전역 스타일 - Ant Design 컴포넌트 커스터마이징 */
-.ant-btn-primary {
-  background-color: #00C851;
-  border-color: #00C851;
-}
-
-.ant-btn-primary:hover,
-.ant-btn-primary:focus {
-  background-color: #00b049;
-  border-color: #00b049;
-}
-
-.ant-input:focus,
-.ant-input-focused {
-  border-color: #00C851;
-  box-shadow: 0 0 0 2px rgba(0, 200, 81, 0.2);
-}
-
-.ant-select:not(.ant-select-disabled):hover .ant-select-selector {
-  border-color: #00C851;
-}
-
+.ant-btn-primary { background-color: #00C851; border-color: #00C851; }
+.ant-btn-primary:hover, .ant-btn-primary:focus { background-color: #00b049; border-color: #00b049; }
+.ant-input:focus, .ant-input-focused { border-color: #00C851; box-shadow: 0 0 0 2px rgba(0,200,81,.2); }
+.ant-select:not(.ant-select-disabled):hover .ant-select-selector { border-color: #00C851; }
 .ant-select-focused:not(.ant-select-disabled).ant-select:not(.ant-select-customize-input) .ant-select-selector {
-  border-color: #00C851;
-  box-shadow: 0 0 0 2px rgba(0, 200, 81, 0.2);
-}
-
-.ant-picker:hover,
-.ant-picker-focused {
-  border-color: #00C851;
-}
-
-.ant-picker-focused {
-  box-shadow: 0 0 0 2px rgba(0, 200, 81, 0.2);
+  border-color: #00C851; box-shadow: 0 0 0 2px rgba(0,200,81,.2);
 }
 </style>
