@@ -3,7 +3,7 @@
     <div class="header-inner">
       <router-link to="/" class="logo">COTW</router-link>
 
-      <a-menu mode="horizontal" :selected-keys="[selectedKey]" theme="light" class="menu">
+      <a-menu mode="horizontal" :selected-keys="[selectedKey]" theme="light" class="menu" :disabled-overflow="true">
         <a-menu-item key="home">
           <router-link to="/">홈</router-link>
         </a-menu-item>
@@ -34,27 +34,21 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { storeToRefs } from 'pinia'
 
 const router = useRouter()
 const route = useRoute()
 
 const selectedKey = ref('home')
 
-// 로그인 상태를 반응형으로 추적
-const isLoggedIn = ref(!!localStorage.getItem('accessToken'))
+const auth = useAuthStore()
+const { isLoggedIn } = storeToRefs(auth) // 반응형 참조
 
-const checkLoginStatus = () => {
-  isLoggedIn.value = !!localStorage.getItem('accessToken')
-}
 
-// 최초 로딩 시 확인
-onMounted(() => {
-  checkLoginStatus()
-})
-
-// 라우팅 변경 시 확인 (선택)
+// 라우팅에 따라 메뉴 선택
 watch(() => route.path, (path) => {
   if (path.startsWith('/donations')) selectedKey.value = 'donate'
   else if (path.startsWith('/login')) selectedKey.value = 'login'
@@ -63,13 +57,23 @@ watch(() => route.path, (path) => {
   else selectedKey.value = 'home'
 }, { immediate: true })
 
-// 로그아웃 처리
+// 로그아웃
 const logout = () => {
-  localStorage.removeItem('accessToken')
-  checkLoginStatus() // 상태 갱신
+
+  auth.logout()
   router.push('/')
 }
+
+// 다중 탭 동기화: 다른 탭에서 로그인/로그아웃 시 반영
+const onStorage = (e) => {
+  if (e.key === 'accessToken') {
+    auth.setTokenFromExternal(e.newValue)
+  }
+}
+onMounted(() => window.addEventListener('storage', onStorage))
+onUnmounted(() => window.removeEventListener('storage', onStorage))
 </script>
+
 
 <style scoped>
 .header-container {
@@ -87,11 +91,19 @@ const logout = () => {
   margin: 0 auto;
 
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
+  gap: 12px; /* 선택: 로고와 메뉴 사이 여백 */
+}
+
+/* 메뉴가 flex 컨테이너 안에서 너비 계산을 제대로 하도록 */
+.menu {
+  margin-left: auto; /*  오른쪽으로 밀기 */
+  min-width: 0;   /*  줄어들 수 있게 허용 */
 }
 
 .logo {
+
   font-size: 1.5rem;
   font-weight: bold;
   color: #00c851;
@@ -102,10 +114,16 @@ const logout = () => {
   font-weight: 500;
   font-size: 1rem;
 }
+/* 오버플로우 서브메뉴가 숨겨지지 않게 설정*/
+.menu :deep(.ant-menu-overflowed-submenu){
+  display: inline-flex;
+}
+
 
 :deep(.ant-menu-item-selected) {
   color: #00c851 !important;
 }
+
 
 :deep(.ant-menu-item-selected)::after {
   border-bottom: 2px solid #00c851 !important;

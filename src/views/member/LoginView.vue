@@ -17,6 +17,7 @@
             </a-form-item>
             <a-form-item>
               <a-checkbox v-model:checked="form.remember">이메일 기억하기</a-checkbox>
+              <a class="forgot-link" href="#">아이디/비밀번호 찾기</a>
             </a-form-item>
             <a-button block type="primary" html-type="submit" class="login-btn" :loading="loading">
               로그인
@@ -41,24 +42,21 @@
 </template>
 
 <script setup>
-import { reactive, computed, onMounted, watch, ref } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
+import axios from 'axios'
 import api from '@/utils/axios'
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth.js'
 
 const router = useRouter()
+const auth = useAuthStore()
 const loading = ref(false)
 
 const form = reactive({
   email: '',
   password: '',
   remember: false,
-});
-
-// 화면 크기 감지를 위한 computed
-const isMobile = computed(() => {
-  // 실제 구현에서는 window.innerWidth 등을 활용
-  return window.innerWidth <= 768;
 });
 
 // 초기 마운트 시 저장된 이메일 불러오기
@@ -101,37 +99,41 @@ const handleSubmit = async () => {
   loading.value = true;
 
   try {
-    const response = await api.post('/api/auth/login', {
+    const response = await axios.post('/api/auth/login', {
       email: form.email,
       password: form.password
     });
 
     // JWT 토큰 저장 (응답 데이터에서 또는 헤더에서)
-    const accessToken = response.data.accessToken || response.headers.authorization;
+    const token = response.headers['authorization']
 
-    if (accessToken) {
-      localStorage.setItem('accessToken', accessToken);
-      message.success('로그인에 성공하셨습니다.');
+    // pinia에 반영
+    auth.login(token)
+      if (token) {
+        message.success('로그인에 성공하셨습니다.');
 
-      // 홈페이지로 리다이렉트
-      await router.push('/');
-    } else {
-      throw new Error('토큰을 받지 못했습니다.');
+        // 홈페이지로 리다이렉트
+        await router.push('/');
+      } else {
+        throw new Error('토큰을 받지 못했습니다.');
+      }
+
+
+  }catch (error) {
+      message.error("로그인에 실패하셨습니다. 다시 시도해주세요.")
+
+      console.error('로그인 에러:', error);
+
+      if (error.response?.status === 401) {
+        message.error('이메일 또는 비밀번호가 올바르지 않습니다.');
+      } else if (error.response?.status === 400) {
+        message.error('입력 정보를 확인해주세요.');
+      } else {
+        message.error('로그인에 실패했습니다. 다시 시도해주세요.');
+      }
+    } finally {
+      loading.value = false;
     }
-
-  } catch (error) {
-    console.error('로그인 에러:', error);
-
-    if (error.response?.status === 401) {
-      message.error('이메일 또는 비밀번호가 올바르지 않습니다.');
-    } else if (error.response?.status === 400) {
-      message.error('입력 정보를 확인해주세요.');
-    } else {
-      message.error('로그인에 실패했습니다. 다시 시도해주세요.');
-    }
-  } finally {
-    loading.value = false;
-  }
 }
 
 function goToSignUp() {
@@ -159,6 +161,12 @@ function goToSignUp() {
 
 .login-title {
   margin-bottom: 30px;
+}
+
+.forgot-link {
+  float: right;
+  text-decoration: none;
+  font-size: 0.9rem;
 }
 
 .login-btn {
@@ -241,6 +249,13 @@ function goToSignUp() {
 @media (max-width: 768px) {
   .login-card {
     flex-direction: column !important;
+  }
+
+  .forgot-link {
+    float: none;
+    display: block;
+    margin-top: 8px;
+    text-align: right;
   }
 }
 

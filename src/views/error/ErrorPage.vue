@@ -22,96 +22,79 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'ErrorPage',
-  props: {
-    errorType: {
-      type: String,
-      default: '404',
-    },
-    customMessage: {
-      type: String,
-      default: null,
-    },
-  },
-  computed: {
-    errorCode() {
-      const codes = {
-        404: '404',
-        403: '403',
-        500: '500',
-        network: 'NET',
-        timeout: 'TIMEOUT',
-      }
-      return codes[this.errorType] || '오류'
-    },
-    errorTitle() {
-      const titles = {
-        404: '페이지를 찾을 수 없습니다',
-        403: '접근이 금지되었습니다',
-        500: '서버 오류가 발생했습니다',
-        network: '네트워크 연결 오류',
-        timeout: '요청 시간이 초과되었습니다',
-      }
-      return titles[this.errorType] || '알 수 없는 오류'
-    },
-    errorMessage() {
-      if (this.customMessage) {
-        return this.customMessage
-      }
+<script setup>
+import { computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
-      const messages = {
-        404: '요청하신 페이지가 존재하지 않거나 이동되었을 수 있습니다.',
-        403: '이 페이지에 접근할 권한이 없습니다.',
-        500: '서버에서 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
-        network: '인터넷 연결을 확인하고 다시 시도해 주세요.',
-        timeout: '요청 처리 시간이 너무 오래 걸렸습니다.',
-      }
-      return messages[this.errorType] || '예상치 못한 오류가 발생했습니다.'
-    },
-    showRetry() {
-      return ['500', 'network', 'timeout'].includes(this.errorType)
-    },
-  },
-  methods: {
-    goHome() {
-      this.$router.push('/')
-    },
-    goBack() {
-      if (window.history.length > 1) {
-        this.$router.go(-1)
-      } else {
-        this.$router.push('/')
-      }
-    },
-    retry() {
-      // 현재 페이지 새로고침 또는 재시도 로직
-      window.location.reload()
-    },
-  },
-  mounted() {
-    // 에러 로그 전송 (선택사항)
-    this.logError()
-  },
-  methods: {
-    ...this.methods,
-    logError() {
-      const errorInfo = {
-        type: this.errorType,
-        path: this.$route.fullPath,
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-      }
+const props = defineProps({
+  errorType: { type: String, default: '404' },
+  customMessage: { type: String, default: null },
+})
 
-      // 에러 로깅 서비스로 전송
-      console.log('Error logged:', errorInfo)
+const router = useRouter()
+const route = useRoute()
 
-      // 실제 로깅 서비스 예시:
-      // this.$http.post('/api/errors', errorInfo)
-    },
-  },
+const errorCode = computed(() => {
+  const codes = { 404: '404', 403: '403', 500: '500', network: 'NET', timeout: 'TIMEOUT' }
+  return codes[props.errorType] ?? '오류'
+})
+
+const errorTitle = computed(() => {
+  const titles = {
+    404: '페이지를 찾을 수 없습니다',
+    403: '접근이 금지되었습니다',
+    500: '서버 오류가 발생했습니다',
+    network: '네트워크 연결 오류',
+    timeout: '요청 시간이 초과되었습니다',
+  }
+  return titles[props.errorType] ?? '알 수 없는 오류'
+})
+
+const errorMessage = computed(() => {
+  if (props.customMessage) return props.customMessage
+  const messages = {
+    404: '요청하신 페이지가 존재하지 않거나 이동되었을 수 있습니다.',
+    403: '이 페이지에 접근할 권한이 없습니다.',
+    500: '서버에서 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+    network: '인터넷 연결을 확인하고 다시 시도해 주세요.',
+    timeout: '요청 처리 시간이 너무 오래 걸렸습니다.',
+  }
+  return messages[props.errorType] ?? '예상치 못한 오류가 발생했습니다.'
+})
+
+const showRetry = computed(() => ['500', 'network', 'timeout'].includes(props.errorType))
+
+function goHome() {
+  router.push('/')
 }
+function goBack() {
+  if (window.history.length > 1) router.go(-1)
+  else router.push('/')
+}
+function retry() {
+  // window.location.reload()는 세션까지 초기화 될 우려가 있어 소프트 리로드 사용.
+  router.replace({
+    path: route.path,
+    params: route.params,
+    query: { ...route.query, _r: Date.now() } // 키만 바꿔서 재마운트 유도
+  })
+}
+
+function logError() {
+  const errorInfo = {
+    type: props.errorType,
+    path: route.fullPath,
+    timestamp: new Date().toISOString(),
+    userAgent: navigator.userAgent,
+  }
+  console.log('Error logged:', errorInfo)
+  // 실제 전송 예시:
+  // await axios.post('/api/errors', errorInfo)
+}
+
+onMounted(() => {
+  logError()
+})
 </script>
 
 <style scoped>
@@ -180,7 +163,6 @@ export default {
   background-color: #ff6b6b;
   color: white;
 }
-
 .btn-primary:hover {
   background-color: #ff5252;
   transform: translateY(-2px);
@@ -192,7 +174,6 @@ export default {
   color: white;
   border: 2px solid rgba(255, 255, 255, 0.8);
 }
-
 .btn-secondary:hover {
   background-color: rgba(255, 255, 255, 0.1);
   border-color: white;
@@ -204,7 +185,6 @@ export default {
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
-
 .btn-tertiary:hover {
   background-color: rgba(255, 255, 255, 0.3);
   transform: translateY(-2px);
@@ -214,15 +194,12 @@ export default {
   .error-container {
     padding: 1rem;
   }
-
   .error-code {
     font-size: 4rem;
   }
-
   .error-title {
     font-size: 1.4rem;
   }
-
   .error-actions {
     flex-direction: column;
     align-items: center;
