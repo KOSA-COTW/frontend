@@ -85,7 +85,7 @@
 <script setup>
 import { reactive, ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
-import api from '@/utils/axios'
+import api from 'axios'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
