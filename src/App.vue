@@ -14,7 +14,7 @@ import Footer from '@/components/Footer.vue'
     <!-- 본문 -->
     <a-layout-content style="padding: 12px; background: #ffffff">
       <div style="max-width: 1200px; margin: 0 auto">
-        <RouterView />
+        <RouterView :key="$route.fullPath" />
       </div>
     </a-layout-content>
 
