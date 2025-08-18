@@ -1,11 +1,12 @@
 <template>
   <div class="post-list-container">
     <div class="header">
-      <h1 class="page-title">글 목록</h1>
-      <a-button type="primary" class="write-button" @click="handleWrite">
-        <PlusOutlined />
-        글쓰기
-      </a-button>
+      <h1 class="page-title">관리자 - 글 목록</h1>
+      <div class="header-actions">
+        <a-button type="primary" @click="handleMakePublic" class="public-button">
+          전체 공개
+        </a-button>
+      </div>
     </div>
 
     <div class="search-section">
@@ -20,33 +21,44 @@
     </div>
 
     <div class="filter-section">
-      <a-select
-        v-model:value="selectedCategory"
-        placeholder="카테고리 선택"
-        style="width: 200px"
-        @change="handleCategoryChange"
-        allowClear
-      >
-        <a-select-option value="">전체</a-select-option>
-        <a-select-option value="공지사항">공지사항</a-select-option>
-        <a-select-option value="자유게시판">자유게시판</a-select-option>
-        <a-select-option value="질문답변">질문답변</a-select-option>
-        <a-select-option value="정보공유">정보공유</a-select-option>
-      </a-select>
+      <div class="filter-row">
+        <a-select
+          v-model:value="selectedCategory"
+          placeholder="카테고리 선택"
+          style="width: 200px; margin-right: 16px"
+          @change="handleCategoryChange"
+          allowClear
+        >
+          <a-select-option value="">전체</a-select-option>
+          <a-select-option value="아동">아동</a-select-option>
+          <a-select-option value="장애인">장애인</a-select-option>
+          <a-select-option value="어르신">어르신</a-select-option>
+          <a-select-option value="동물">동물</a-select-option>
+          <a-select-option value="환경">환경</a-select-option>
+          <a-select-option value="지구촌">지구촌</a-select-option>
+          <a-select-option value="학생">학생</a-select-option>
+          <a-select-option value="생활">생활</a-select-option>
+        </a-select>
+        
+        <a-button @click="toggleDateSort" class="sort-button">
+          날짜순 {{ sortOrder === 'desc' ? '↓' : '↑' }}
+        </a-button>
+      </div>
     </div>
 
     <a-table
       :columns="columns"
-      :data-source="filteredPosts"
+      :data-source="sortedPosts"
       :pagination="pagination"
       :loading="loading"
+      :row-selection="rowSelection"
       row-key="id"
       @change="handleTableChange"
       class="post-table"
     >
       <template #bodyCell="{ column, record, index }">
-        <template v-if="column.key === 'index'">
-          {{ (pagination.current - 1) * pagination.pageSize + index + 1 }}
+        <template v-if="column.key === 'id'">
+          {{ record.id }}
         </template>
         <template v-else-if="column.key === 'category'">
           <a-tag :color="getCategoryColor(record.category)">
@@ -57,9 +69,6 @@
           <a @click="handlePostClick(record)" class="post-title">
             {{ record.title }}
           </a>
-          <span v-if="record.commentCount > 0" class="comment-count">
-            [{{ record.commentCount }}]
-          </span>
         </template>
         <template v-else-if="column.key === 'date'">
           {{ formatDate(record.date) }}
@@ -71,18 +80,16 @@
 
 <script>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 
 export default {
-  name: 'PostListPage',
-  components: {
-    PlusOutlined
-  },
+  name: 'AdminPostListPage',
   setup() {
     const loading = ref(false)
     const searchText = ref('')
     const selectedCategory = ref('')
+    const sortOrder = ref('desc') // 'desc' 또는 'asc'
+    const selectedRowKeys = ref([])
 
     const pagination = reactive({
       current: 1,
@@ -90,14 +97,17 @@ export default {
       total: 0,
       showSizeChanger: true,
       showQuickJumper: true,
-      showTotal: (total, range) => `${range[0]}-${range[1]} / 총 ${total}개`
+      pageSizeOptions: ['10', '20', '50'],
+      showTotal: (total, range) => `${range[0]}-${range[1]} / 총 ${total}개`,
+      hideOnSinglePage: false
     })
 
     const columns = [
       {
-        title: 'No',
-        key: 'index',
-        width: 60,
+        title: 'ID',
+        key: 'id',
+        dataIndex: 'id',
+        width: 80,
         align: 'center'
       },
       {
@@ -136,80 +146,70 @@ export default {
         category: '아동',
         title: '전라북도 전주시 새누리지역아동센터 아이들 28에게 따뜻한 간식을',
         author: '관리자',
-        date: new Date('2024-01-15'),
-        commentCount: 3
+        date: new Date('2024-01-15')
       },
       {
         id: 2,
         category: '장애인',
         title: '서울시 중랑구 해오름지역아동센터 장애 아동들에게 안전한 교통비를',
         author: '홍길동',
-        date: new Date('2024-01-14'),
-        commentCount: 12
+        date: new Date('2024-01-14')
       },
       {
         id: 3,
         category: '어르신',
         title: '부산시 사하구 사랑지역아동센터 어르신들께 건강 검진비를',
         author: '김개발',
-        date: new Date('2024-01-13'),
-        commentCount: 5
+        date: new Date('2024-01-13')
       },
       {
         id: 4,
         category: '동물',
         title: '대전시 서구 아람지역 내 유기동물 보호소에 사료와 의약품을\n',
         author: '이코딩',
-        date: new Date('2024-01-12'),
-        commentCount: 8
+        date: new Date('2024-01-12')
       },
       {
         id: 5,
         category: '환경',
         title: '경기도 수원시 하늘지역 환경 정화 활동에 필요한 물품을',
         author: '박프론트',
-        date: new Date('2024-01-11'),
-        commentCount: 15
+        date: new Date('2024-01-11')
       },
       {
         id: 6,
         category: '지구촌',
         title: '인천시 연수구 드림지역 아이들에게 지구촌 교육 지원을',
         author: '최초보',
-        date: new Date('2024-01-10'),
-        commentCount: 7
+        date: new Date('2024-01-10')
       },
       {
         id: 7,
         category: '공지사항',
         title: '커뮤니티 이용 규칙 안내',
         author: '관리자',
-        date: new Date('2024-01-09'),
-        commentCount: 2
+        date: new Date('2024-01-09')
       },
       {
         id: 8,
         category: '학생',
         title: 'KOSA 602호 학생들에게 간식을',
         author: '정디자인',
-        date: new Date('2024-01-08'),
-        commentCount: 11
+        date: new Date('2024-01-08')
       },
       {
         id: 9,
         category: '생활',
         title: '대구시 달서구 대한교육문화원지역아동센터 아이들 28명에게',
         author: '강모임',
-        date: new Date('2024-01-07'),
-        commentCount: 9
+        date: new Date('2024-01-07')
       },
       {
         id: 10,
         category: '동물',
         title: '강지냥이쉼터',
         author: '윤백엔드',
-        date: new Date('2024-01-06'),
-        commentCount: 13
+        date: new Date('2024-01-06')
       }
     ])
 
@@ -230,8 +230,30 @@ export default {
         )
       }
 
-      pagination.total = filtered.length
       return filtered
+    })
+
+    const sortedPosts = computed(() => {
+      const sorted = [...filteredPosts.value]
+      sorted.sort((a, b) => {
+        if (sortOrder.value === 'desc') {
+          return new Date(b.date) - new Date(a.date)
+        } else {
+          return new Date(a.date) - new Date(b.date)
+        }
+      })
+      
+      // 페이지네이션 총 개수 업데이트
+      pagination.total = sorted.length
+      
+      // 최대 10페이지 제한
+      const maxTotal = pagination.pageSize * 10
+      if (pagination.total > maxTotal) {
+        pagination.total = maxTotal
+        return sorted.slice(0, maxTotal)
+      }
+      
+      return sorted
     })
 
     const getCategoryColor = (category) => {
@@ -271,8 +293,25 @@ export default {
       pagination.pageSize = pag.pageSize
     }
 
-    const handleWrite = () => {
-      message.success('글쓰기 페이지로 이동')
+    const toggleDateSort = () => {
+      sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+      pagination.current = 1
+    }
+
+    const handleMakePublic = () => {
+      if (selectedRowKeys.value.length === 0) {
+        message.warning('공개할 게시글을 선택해주세요.')
+        return
+      }
+      message.success(`${selectedRowKeys.value.length}개 게시글을 전체 공개로 설정했습니다.`)
+      selectedRowKeys.value = []
+    }
+
+    const rowSelection = {
+      selectedRowKeys: selectedRowKeys,
+      onChange: (newSelectedRowKeys) => {
+        selectedRowKeys.value = newSelectedRowKeys
+      }
     }
 
     const handlePostClick = (post) => {
@@ -280,22 +319,26 @@ export default {
     }
 
     onMounted(() => {
-      pagination.total = posts.value.length
+      // 초기 데이터 로드 시 정렬된 데이터 기준으로 총 개수 설정
     })
 
     return {
       loading,
       searchText,
       selectedCategory,
+      sortOrder,
+      selectedRowKeys,
       pagination,
       columns,
-      filteredPosts,
+      sortedPosts,
+      rowSelection,
       getCategoryColor,
       formatDate,
       handleSearch,
       handleCategoryChange,
       handleTableChange,
-      handleWrite,
+      toggleDateSort,
+      handleMakePublic,
       handlePostClick
     }
   }
@@ -325,7 +368,12 @@ export default {
   margin: 0;
 }
 
-.write-button {
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.public-button {
   background-color: #00C851;
   border-color: #00C851;
   font-weight: 500;
@@ -333,10 +381,24 @@ export default {
   padding: 0 20px;
 }
 
-.write-button:hover,
-.write-button:focus {
+.public-button:hover,
+.public-button:focus {
   background-color: #00A844;
   border-color: #00A844;
+}
+
+.sort-button {
+  background-color: #f0f0f0;
+  border-color: #d9d9d9;
+  color: #262626;
+  font-weight: 500;
+}
+
+.sort-button:hover,
+.sort-button:focus {
+  background-color: #00C851;
+  border-color: #00C851;
+  color: white;
 }
 
 .search-section {
@@ -360,6 +422,11 @@ export default {
 
 .filter-section {
   margin-bottom: 20px;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
 }
 
 .post-table {
@@ -390,11 +457,6 @@ export default {
   text-decoration: underline;
 }
 
-.comment-count {
-  color: #00C851;
-  font-weight: 500;
-  margin-left: 8px;
-}
 
 .ant-pagination {
   margin-top: 24px;
