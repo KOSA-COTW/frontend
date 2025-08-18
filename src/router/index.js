@@ -22,11 +22,6 @@ const router = createRouter({
       component: () => import('@/views/board/PostCreateView.vue')
     },
     {
-      path: '/posts/list',
-      name: 'postList',
-      component: () => import('@/views/admin/board/PostListView.vue')
-    },
-    {
       path: '/signup',
       name: 'signup',
       component: SignupView
@@ -61,7 +56,7 @@ const router = createRouter({
       component: () => import('@/views/error/ErrorPage.vue'),
       props: { errorType: '404' }
     },
-    
+
     // 관리자 라우트
     ...adminRoutes
   ],
@@ -72,20 +67,20 @@ router.beforeEach((to, from, next) => {
   // requiresAdmin 메타 정보가 있는 경우 관리자 권한 체크
   if (to.meta.requiresAdmin) {
     const authStore = useAuthStore()
-    
+
     if (!authStore.isLoggedIn) {
       // 로그인이 안되어 있으면 로그인 페이지로
       next('/login')
       return
     }
-    
+
     if (!authStore.isAdmin) {
       // 관리자가 아니면 메인 페이지로
       next('/')
       return
     }
   }
-  
+
   next()
 })
 

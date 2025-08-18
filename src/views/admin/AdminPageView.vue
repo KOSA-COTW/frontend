@@ -10,7 +10,7 @@
       <a-col :span="8">
         <a-card title="게시글 관리" hoverable>
           <p>게시글을 관리합니다.</p>
-          <a-button type="primary" size="large" block>
+          <a-button type="primary" size="large" block @click="goToBoardManagement">
             게시글 관리로 이동
           </a-button>
         </a-card>
@@ -45,11 +45,14 @@ import { useRouter } from 'vue-router'
 const authStore = useAuthStore()
 const router = useRouter()
 
+// onMounted에서 권한 체크 제거 - 라우터 가드에서 처리
 onMounted(() => {
-  if (!authStore.isAdmin) {
-    router.push('/')
-  }
+  // 관리자 권한은 라우터 가드에서 체크됨
 })
+
+const goToBoardManagement = () => {
+  router.push('/admin/board')
+}
 </script>
 
 <style scoped>
