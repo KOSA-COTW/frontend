@@ -19,7 +19,7 @@
       <a-col :span="8">
         <a-card title="댓글 관리" hoverable>
           <p>댓글을 관리합니다.</p>
-          <a-button type="primary" size="large" block>
+          <a-button type="primary" size="large" block @click="goToCommentManagement">
             댓글 관리로 이동
           </a-button>
         </a-card>
@@ -52,6 +52,10 @@ onMounted(() => {
 
 const goToBoardManagement = () => {
   router.push('/admin/board')
+}
+
+const goToCommentManagement = () => {
+  router.push('/admin/comments')
 }
 </script>
 

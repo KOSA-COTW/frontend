@@ -23,5 +23,11 @@ export const adminRoutes = [
     name: 'adminBoardPublicPosts',
     component: () => import('@/views/admin/board/PublicPostListView.vue'),
     meta: { requiresAdmin: true }
+  },
+  {
+    path: '/admin/comments',
+    name: 'adminComments',
+    component: () => import('@/views/admin/comment/CommentListView.vue'),
+    meta: { requiresAdmin: true }
   }
 ]
