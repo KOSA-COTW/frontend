@@ -5,10 +5,12 @@ import SignupView from '@/views/member/SignupView.vue'
 import LoginView from '@/views/member/LoginView.vue'
 import MyPageView from '@/views/member/MyPageView.vue'
 import { useAuthStore } from '@/stores/auth'
+import { adminRoutes } from './admin.js'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // 일반 사용자 라우트
     {
       path: '/',
       name: 'home',
@@ -40,21 +42,6 @@ const router = createRouter({
       component: MyPageView
     },
     {
-      path: '/admin',
-      name: 'admin',
-      component: () => import('@/views/admin/AdminPageView.vue')
-    },
-    {
-      path: '/admin/board',
-      name: 'adminBoard',
-      component: () => import('@/views/admin/board/AdminBoardView.vue')
-    },
-    {
-      path: '/admin/board/posts',
-      name: 'adminBoardPosts',
-      component: () => import('@/views/admin/board/PostListView.vue')
-    },
-    {
       path: '/posts/:id',
       name: 'postDetail',
       component: () => import('@/views/board/PostDetailView.vue'),
@@ -73,14 +60,17 @@ const router = createRouter({
       name: 'NotFound',
       component: () => import('@/views/error/ErrorPage.vue'),
       props: { errorType: '404' }
-    }
+    },
+    
+    // 관리자 라우트
+    ...adminRoutes
   ],
 })
 
 // 네비게이션 가드 - 관리자 권한 체크
 router.beforeEach((to, from, next) => {
-  // /admin으로 시작하는 경로에 대한 관리자 권한 체크
-  if (to.path.startsWith('/admin')) {
+  // requiresAdmin 메타 정보가 있는 경우 관리자 권한 체크
+  if (to.meta.requiresAdmin) {
     const authStore = useAuthStore()
     
     if (!authStore.isLoggedIn) {
