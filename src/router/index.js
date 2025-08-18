@@ -39,6 +39,11 @@ const router = createRouter({
       component: MyPageView
     },
     {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('@/views/admin/AdminPageView.vue')
+    },
+    {
       path: '/posts/:id',
       name: 'postDetail',
       component: () => import('@/views/board/PostDetailView.vue'),
