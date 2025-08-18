@@ -4,6 +4,7 @@ import MainPage from '@/views/MainPage.vue'
 import SignupView from '@/views/member/SignupView.vue'
 import LoginView from '@/views/member/LoginView.vue'
 import MyPageView from '@/views/member/MyPageView.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,7 +22,7 @@ const router = createRouter({
     {
       path: '/posts/list',
       name: 'postList',
-      component: () => import('@/views/board/PostListView.vue')
+      component: () => import('@/views/admin/board/PostListView.vue')
     },
     {
       path: '/signup',
@@ -44,6 +45,16 @@ const router = createRouter({
       component: () => import('@/views/admin/AdminPageView.vue')
     },
     {
+      path: '/admin/board',
+      name: 'adminBoard',
+      component: () => import('@/views/admin/board/AdminBoardView.vue')
+    },
+    {
+      path: '/admin/board/posts',
+      name: 'adminBoardPosts',
+      component: () => import('@/views/admin/board/PostListView.vue')
+    },
+    {
       path: '/posts/:id',
       name: 'postDetail',
       component: () => import('@/views/board/PostDetailView.vue'),
@@ -64,6 +75,28 @@ const router = createRouter({
       props: { errorType: '404' }
     }
   ],
+})
+
+// 네비게이션 가드 - 관리자 권한 체크
+router.beforeEach((to, from, next) => {
+  // /admin으로 시작하는 경로에 대한 관리자 권한 체크
+  if (to.path.startsWith('/admin')) {
+    const authStore = useAuthStore()
+    
+    if (!authStore.isLoggedIn) {
+      // 로그인이 안되어 있으면 로그인 페이지로
+      next('/login')
+      return
+    }
+    
+    if (!authStore.isAdmin) {
+      // 관리자가 아니면 메인 페이지로
+      next('/')
+      return
+    }
+  }
+  
+  next()
 })
 
 export default router
