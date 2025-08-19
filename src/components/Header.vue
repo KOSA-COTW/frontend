@@ -7,8 +7,8 @@
         <a-menu-item key="home">
           <router-link to="/">홈</router-link>
         </a-menu-item>
-        <a-menu-item key="donate">
-          <router-link to="/donations">기부하기</router-link>
+        <a-menu-item key="posts">
+          <router-link to="/posts">기부하기</router-link>
         </a-menu-item>
 
         <template v-if="!isLoggedIn">
@@ -21,6 +21,10 @@
         </template>
 
         <template v-else>
+          <!-- 기부글 쓰기: 관리자 or 단체 계정일 때만 -->
+  <a-menu-item v-if="isAdmin || isOrganization" key="create-post">
+    <router-link to="/posts/create">기부글 쓰기</router-link>
+  </a-menu-item>
           <template v-if="isAdmin">
             <a-menu-item key="admin">
               <router-link to="/admin">관리자 페이지</router-link>
@@ -56,12 +60,13 @@ const route = useRoute()
 const selectedKey = ref('home')
 
 const auth = useAuthStore()
-const { isLoggedIn, isAdmin } = storeToRefs(auth) // 반응형 참조
+const { isLoggedIn, isAdmin, isOrganization } = storeToRefs(auth) // 반응형 참조
 
 
 // 라우팅에 따라 메뉴 선택
 watch(() => route.path, (path) => {
-  if (path.startsWith('/donations')) selectedKey.value = 'donate'
+  if (path.startsWith('/posts')) selectedKey.value = 'posts'
+  else if (path.startsWith('/posts/create')) selectedKey.value = 'create-post'
   else if (path.startsWith('/login')) selectedKey.value = 'login'
   else if (path.startsWith('/signup')) selectedKey.value = 'signup'
   else if (path.startsWith('/mypage')) selectedKey.value = 'mypage'

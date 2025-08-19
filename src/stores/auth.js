@@ -24,7 +24,8 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isLoggedIn: (state) => !!state.accessToken,
-    isAdmin: (state) => state.user?.role === 'ADMIN'
+    isAdmin: (state) => state.user?.role === 'ADMIN',
+    isOrganization: (state) => state.user?.role === 'ORGANIZATION'
   },
   actions: {
     // 로그인 성공 시 호출
@@ -34,7 +35,7 @@ export const useAuthStore = defineStore('auth', {
         return
       }
       this.accessToken = token.replace(/^Bearer\s+/i, '')
-      
+
       // JWT에서 사용자 정보 추출
       const decodedToken = decodeJWT(token)
       if (decodedToken) {

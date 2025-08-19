@@ -42,16 +42,23 @@ const donations = ref([])
     return computed(() => donations.value.find(item => item.id === Number(id)))
   }
 
-  // API로 데이터 가져오기
-async function fetchDonations() {
-  console.log('fetchDonations 호출됨')
+// 메인용 6개: 공개 + 마감임박
+async function fetchDonationsHome() {
   try {
-    const data = await api.get('/api/posts')
-    console.log('API 응답:', data)
+    const data = await api.get('/api/posts/home')  // 백엔드에서 6개만 내려주도록 구현
     donations.value = data
-    console.log('store.donations 갱신됨:', donations.value)
   } catch (err) {
-    console.error('기부 데이터 가져오기 실패:', err)
+    console.error('기부 데이터(메인) 가져오기 실패:', err)
+  }
+}
+
+// 전체 공개글
+async function fetchDonationsAll() {
+  try {
+    const data = await api.get('/api/posts')       // 전체 공개글
+    donations.value = data
+  } catch (err) {
+    console.error('기부 데이터(전체) 가져오기 실패:', err)
   }
 }
 
@@ -69,6 +76,7 @@ async function fetchDonations() {
     totalDonationAll,
     totalDonationFiltered,
     setCategory, clearCategory,
-    fetchDonations,
+    fetchDonationsHome,
+    fetchDonationsAll,
   }
 })
