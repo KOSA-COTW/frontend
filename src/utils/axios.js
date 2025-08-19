@@ -11,9 +11,18 @@ const instance = axios.create({
 // 요청 인터셉터
 instance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // auth store의 persist 데이터에서 accessToken 가져오기
+    const authData = localStorage.getItem('auth');
+    if (authData) {
+      try {
+        const parsedAuth = JSON.parse(authData);
+        const token = parsedAuth.accessToken;
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.error('Auth data parsing error:', error);
+      }
     }
     return config;
   },

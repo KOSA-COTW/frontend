@@ -2,19 +2,24 @@
 import { ref, onMounted  } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MoreOutlined } from '@ant-design/icons-vue'
- import axios from 'axios'
-
- const getAuthHeader = () => {
-   const auth = localStorage.getItem('auth')
-   const accessToken = auth ? JSON.parse(auth).accessToken : null
-   return { access: accessToken }
- }
+import { message } from 'ant-design-vue'
+import { useAuthStore } from '@/stores/auth'
+import { usePaymentStore } from '@/stores/payment'
+import api from '@/utils/axios'
 const mainColor = '#00C851'
 const newComment = ref('')
 const comments = ref([])
 
+// 모달 관련 상태
+const donationModalVisible = ref(false)
+const donationAmount = ref(10000)
+const customAmount = ref('')
+const quickAmounts = [5000, 10000, 20000, 50000, 100000, 200000]
+
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
+const paymentStore = usePaymentStore()
 const postId = route.params.id
 
 // 상태값
@@ -24,11 +29,8 @@ const error = ref(null)
 
 async function fetchPostDetail() {
   try {
-    const res = await axios.get(
-     `${import.meta.env.VITE_API_BASE_URL}/api/posts/${postId}`,
-     { headers: getAuthHeader() }
-   )
-   post.value = res.data
+    const data = await api.get(`/api/posts/${postId}`)
+    post.value = data
   } catch (err) {
     console.error('게시글 불러오기 실패:', err)
     error.value = '게시글을 불러오는 중 오류가 발생했습니다.'
@@ -47,10 +49,7 @@ function addComment() {
 async function deletePost() {
   if (!confirm('정말 삭제하시겠습니까?')) return
   try {
-    await axios.delete(
-     `${import.meta.env.VITE_API_BASE_URL}/api/posts/${postId}`,
-     { headers: getAuthHeader() }
-   )
+    await api.delete(`/api/posts/${postId}`)
     alert('삭제 완료!')
     router.push('/') // 삭제 후 메인으로 이동
   } catch (err) {
@@ -63,6 +62,52 @@ async function deletePost() {
 
 function editPost() {
   router.push(`/posts/${postId}/edit`)
+}
+
+// 기부 모달 관련 함수
+function openDonationModal() {
+  if (!auth.isLoggedIn) {
+    message.warning('로그인이 필요합니다.')
+    router.push('/login')
+    return
+  }
+  donationModalVisible.value = true
+}
+
+function closeDonationModal() {
+  donationModalVisible.value = false
+  donationAmount.value = 10000
+  customAmount.value = ''
+}
+
+function setQuickAmount(amount) {
+  donationAmount.value = amount
+  customAmount.value = ''
+}
+
+function setCustomAmount() {
+  const amount = parseInt(customAmount.value)
+  if (amount && amount >= 1000) {
+    donationAmount.value = amount
+  } else {
+    message.error('최소 기부 금액은 1,000원입니다.')
+  }
+}
+
+function proceedToPayment() {
+  if (donationAmount.value < 1000) {
+    message.error('최소 기부 금액은 1,000원입니다.')
+    return
+  }
+
+  // 1. Pinia 스토어에 금액 저장
+  console.log(`[PostDetailView] Proceeding to payment with amount: ${donationAmount.value}`);
+  paymentStore.setDonationAmount(donationAmount.value)
+
+  // 2. window.location.href로 강제 이동 (하드 리로드)
+  closeDonationModal()
+  const url = `/payment/checkout/${postId}?title=${encodeURIComponent(post.value?.title || '')}&category=${encodeURIComponent(post.value?.category || '')}`
+  window.location.href = url
 }
 
 // 컴포넌트 로드 시 실행
@@ -120,7 +165,7 @@ onMounted(fetchPostDetail)
           <a-progress
             :percent="Number(((post.currentAmount / post.amount) * 100).toFixed(1))"
             :stroke-color="mainColor"
-            show-info="false"
+            :show-info="false"
           />
           <div class="current">
             {{ post.raised ? post.raised.toLocaleString() + '원 모금' : '---' }}
@@ -133,7 +178,7 @@ onMounted(fetchPostDetail)
             </span></div>
             <div>총 참여인원 <span>{{ post.participants?.length || 0 }}명</span></div>
           </div>
-          <a-button type="primary" class="donate-btn" :style="{background: mainColor, borderColor: mainColor}">
+          <a-button type="primary" class="donate-btn" :style="{background: mainColor, borderColor: mainColor}" @click="openDonationModal">
             곧장기부하기
           </a-button>
         </div>
@@ -186,6 +231,67 @@ onMounted(fetchPostDetail)
         <li v-for="(c, i) in comments" :key="i" class="comment-item">{{ c }}</li>
       </ul>
     </div>
+
+    <!-- 기부 모달 -->
+    <a-modal 
+      v-model:open="donationModalVisible" 
+      title="기부하기" 
+      :footer="null"
+      width="500px"
+      @cancel="closeDonationModal"
+    >
+      <div class="donation-modal">
+        <div class="modal-post-info">
+          <h3>{{ post?.title }}</h3>
+          <p class="modal-description">{{ post?.category }}에 기부합니다</p>
+        </div>
+
+        <div class="amount-section">
+          <h4>기부 금액</h4>
+          <div class="quick-amounts">
+            <button 
+              v-for="amount in quickAmounts" 
+              :key="amount"
+              @click="setQuickAmount(amount)"
+              class="quick-amount-btn"
+              :class="{ active: donationAmount === amount }"
+            >
+              {{ amount.toLocaleString() }}원
+            </button>
+          </div>
+
+          <div class="custom-amount">
+            <a-input
+              v-model:value="customAmount"
+              placeholder="직접 입력"
+              @blur="setCustomAmount"
+              @keyup.enter="setCustomAmount"
+              style="margin-top: 12px;"
+            >
+              <template #suffix>원</template>
+            </a-input>
+          </div>
+
+          <div class="selected-amount">
+            <span>선택된 금액: </span>
+            <span class="amount-display">{{ donationAmount.toLocaleString() }}원</span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <a-button @click="closeDonationModal" style="margin-right: 8px;">
+            취소
+          </a-button>
+          <a-button 
+            type="primary" 
+            :style="{background: mainColor, borderColor: mainColor}"
+            @click="proceedToPayment"
+          >
+            {{ donationAmount.toLocaleString() }}원 기부하기
+          </a-button>
+        </div>
+      </div>
+    </a-modal>
   </div>
   <div v-else style="text-align:center;padding:100px 0;">잘못된 접근입니다.</div>
 </template>
@@ -382,5 +488,87 @@ onMounted(fetchPostDetail)
 @media (max-width: 1000px) {
   .main-row { flex-direction: column; gap:16px; }
   .main-right { width: 100%; }
+}
+
+/* 기부 모달 스타일 */
+.donation-modal {
+  padding: 16px 0;
+}
+
+.modal-post-info {
+  text-align: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.modal-post-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.modal-description {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.amount-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.quick-amounts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.quick-amount-btn {
+  padding: 12px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.quick-amount-btn:hover {
+  border-color: #00C851;
+  color: #00C851;
+}
+
+.quick-amount-btn.active {
+  border-color: #00C851;
+  background: #00C851;
+  color: white;
+}
+
+.selected-amount {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.amount-display {
+  font-size: 18px;
+  font-weight: 600;
+  color: #00C851;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
 }
 </style>
