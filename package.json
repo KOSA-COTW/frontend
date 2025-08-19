@@ -12,6 +12,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@tosspayments/tosspayments-sdk": "^2.3.6",
     "ant-design-vue": "^4.2.6",
     "axios": "^1.11.0",
     "pinia": "^3.0.3",
