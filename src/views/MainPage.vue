@@ -34,7 +34,7 @@ function goDetail(id) {
 // 페이지 로드시 API 호출
 onMounted(() => {
   console.log('메인페이지 onMounted 실행됨')
-  store.fetchDonations()
+  store.fetchDonationsHome()
 })
 
 // 카테고리 목록 (그대로)
