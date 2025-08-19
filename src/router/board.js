@@ -17,6 +17,11 @@ export const boardRoutes = [
     name: 'postEdit',
     component: () => import('@/views/board/PostEditView.vue'),
     props: true,
-    meta: { requiresAuth: true, roles: ['ADMIN', 'ORGANIZATION'] } // 필요 시
+    meta: { requiresAuth: true, roles: ['ADMIN', 'ORGANIZATION'] }
+  },
+  {
+    path: '/posts',
+    name: 'postList',
+    component: () => import('@/views/board/PostListView.vue')
   },
 ]

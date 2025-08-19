@@ -7,8 +7,8 @@
         <a-menu-item key="home">
           <router-link to="/">홈</router-link>
         </a-menu-item>
-        <a-menu-item key="donate">
-          <router-link to="/donations">기부하기</router-link>
+        <a-menu-item key="posts">
+          <router-link to="/posts">기부하기</router-link>
         </a-menu-item>
 
         <template v-if="!isLoggedIn">
@@ -65,7 +65,8 @@ const { isLoggedIn, isAdmin, isOrganization } = storeToRefs(auth) // 반응형 �
 
 // 라우팅에 따라 메뉴 선택
 watch(() => route.path, (path) => {
-  if (path.startsWith('/posts/create')) selectedKey.value = 'create-post'
+  if (path.startsWith('/posts')) selectedKey.value = 'posts'
+  else if (path.startsWith('/posts/create')) selectedKey.value = 'create-post'
   else if (path.startsWith('/login')) selectedKey.value = 'login'
   else if (path.startsWith('/signup')) selectedKey.value = 'signup'
   else if (path.startsWith('/mypage')) selectedKey.value = 'mypage'

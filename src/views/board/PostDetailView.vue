@@ -93,13 +93,19 @@ onMounted(fetchPostDetail)
 
     <div class="main-row">
       <div class="main-left">
-        <a-carousel autoplay style="width:100%;border-radius:16px;">
-          <div v-for="(img, idx) in post.imageUrls" :key="idx">
-            <div class="img-wrap">
-              <img class="main-img" :src="img" />
-            </div>
-          </div>
-        </a-carousel>
+        <a-carousel v-if="post.imageUrls && post.imageUrls.length" autoplay style="width:100%;border-radius:16px;">
+  <div v-for="(img, idx) in post.imageUrls" :key="idx">
+    <div class="img-wrap">
+      <img class="main-img" :src="img || 'https://placehold.co/300x180'" />
+    </div>
+  </div>
+</a-carousel>
+
+<!-- fallback -->
+<div v-else class="img-wrap">
+  <img class="main-img" src="https://placehold.co/300x180" />
+</div>
+
       </div>
       <div class="main-right">
         <div class="progress-card">

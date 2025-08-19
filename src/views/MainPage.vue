@@ -88,7 +88,7 @@ const categories = [
           @click="goDetail(item.id)"
           style="cursor:pointer"
         >
-          <img :src="item.image" class="donation-image" />
+          <img :src="item.image || 'https://placehold.co/300x180'" class="donation-image" />
 
           <div class="donation-text">
             <div class="category">#{{ item.category }}</div>
