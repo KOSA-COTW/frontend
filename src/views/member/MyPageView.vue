@@ -26,7 +26,7 @@
               <div class="link-buttons">
                 <a-button type="link" size="small">내정보수정</a-button>
                 <a-divider type="vertical" />
-                <a-button type="link" size="small">로그아웃</a-button>
+                <a-button type="link" size="small" @click="logout">로그아웃</a-button>
               </div>
 
               <div class="invite-box">
@@ -67,10 +67,23 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
+import { message } from 'ant-design-vue';
+
+const router = useRouter();
+const auth = useAuthStore();
 
 const userName = '박주성';
 const menuItems = ['정보수정', '기부내역', '포인트내역', '증서출급', '기부금영수증'];
 const selectedMenu = ref('정보수정');
+
+// 로그아웃
+const logout = () => {
+  auth.logout();
+  message.success('로그아웃되었습니다.');
+  router.push('/');
+};
 </script>
 
 <style scoped>

@@ -48,6 +48,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
+import { message } from 'ant-design-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -70,8 +71,8 @@ watch(() => route.path, (path) => {
 
 // 로그아웃
 const logout = () => {
-
   auth.logout()
+  message.success('로그아웃되었습니다.')
   router.push('/')
 }
 
