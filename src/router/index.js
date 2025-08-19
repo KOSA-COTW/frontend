@@ -5,6 +5,7 @@ import SignupView from '@/views/member/SignupView.vue'
 import LoginView from '@/views/member/LoginView.vue'
 import MyPageView from '@/views/member/MyPageView.vue'
 import { useAuthStore } from '@/stores/auth'
+import { boardRoutes } from './board.js'
 import { adminRoutes } from './admin.js'
 import { paymentRoutes } from './payment.js'
 
@@ -16,11 +17,6 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: MainPage,
-    },
-    {
-      path: '/posts/create',
-      name: 'createPost',
-      component: () => import('@/views/board/PostCreateView.vue')
     },
     {
       path: '/signup',
@@ -37,18 +33,6 @@ const router = createRouter({
       name: 'mypage',
       component: MyPageView
     },
-    {
-      path: '/posts/:id',
-      name: 'postDetail',
-      component: () => import('@/views/board/PostDetailView.vue'),
-      props: true,
-    },
-    {
-      path: '/posts/:id/edit',
-      name: 'postEdit',
-      component: () => import('@/views/board/PostEditView.vue'),
-      props: true
-    },
     // 특정 에러 타입별 라우트
     {
       path: '/error/:type',
@@ -63,6 +47,9 @@ const router = createRouter({
       component: () => import('@/views/error/ErrorPage.vue'),
       props: { errorType: '404' }
     },
+
+    // 게시판 관련 라우트
+    ...boardRoutes,
 
     // 결제 관련 라우트
     ...paymentRoutes,
