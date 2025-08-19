@@ -6,6 +6,7 @@ import LoginView from '@/views/member/LoginView.vue'
 import MyPageView from '@/views/member/MyPageView.vue'
 import { useAuthStore } from '@/stores/auth'
 import { adminRoutes } from './admin.js'
+import { paymentRoutes } from './payment.js'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -62,6 +63,9 @@ const router = createRouter({
       component: () => import('@/views/error/ErrorPage.vue'),
       props: { errorType: '404' }
     },
+
+    // 결제 관련 라우트
+    ...paymentRoutes,
 
     // 관리자 라우트
     ...adminRoutes
