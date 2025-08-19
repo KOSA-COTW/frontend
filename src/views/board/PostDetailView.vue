@@ -1,19 +1,41 @@
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { useCounterStore } from '@/stores/counter'
+<script setup>
+import { ref, onMounted  } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { MoreOutlined } from '@ant-design/icons-vue'
+ import axios from 'axios'
 
+ const getAuthHeader = () => {
+   const auth = localStorage.getItem('auth')
+   const accessToken = auth ? JSON.parse(auth).accessToken : null
+   return { access: accessToken }
+ }
 const mainColor = '#00C851'
-const catImgUrl = 'https://placekitten.com/120/120'
 const newComment = ref('')
 const comments = ref([])
 
 const route = useRoute()
-const store = useCounterStore()
+const router = useRouter()
+const postId = route.params.id
 
-// id로 store에서 해당 게시글 찾기
-const postId = computed(() => Number(route.params.id) || 1)
-const post = computed(() => store.donations.find(item => item.id === postId.value))
+// 상태값
+const post = ref(null)
+const loading = ref(true)
+const error = ref(null)
+
+async function fetchPostDetail() {
+  try {
+    const res = await axios.get(
+     `${import.meta.env.VITE_API_BASE_URL}/api/posts/${postId}`,
+     { headers: getAuthHeader() }
+   )
+   post.value = res.data
+  } catch (err) {
+    console.error('게시글 불러오기 실패:', err)
+    error.value = '게시글을 불러오는 중 오류가 발생했습니다.'
+  } finally {
+    loading.value = false
+  }
+}
 
 function addComment() {
   if (newComment.value.trim()) {
@@ -21,6 +43,30 @@ function addComment() {
     newComment.value = ''
   }
 }
+
+async function deletePost() {
+  if (!confirm('정말 삭제하시겠습니까?')) return
+  try {
+    await axios.delete(
+     `${import.meta.env.VITE_API_BASE_URL}/api/posts/${postId}`,
+     { headers: getAuthHeader() }
+   )
+    alert('삭제 완료!')
+    router.push('/') // 삭제 후 메인으로 이동
+  } catch (err) {
+    console.error('삭제 실패:', err)
+    alert(err?.response?.status === 403
+     ? '삭제 권한이 없습니다.'
+     : '삭제 중 오류가 발생했습니다.')
+  }
+}
+
+function editPost() {
+  router.push(`/posts/${postId}/edit`)
+}
+
+// 컴포넌트 로드 시 실행
+onMounted(fetchPostDetail)
 </script>
 
 <template>
@@ -30,15 +76,27 @@ function addComment() {
       <span class="badge">{{ post.category }}</span>
       <!-- 필요하면 badge2, badge3도 store 데이터에 추가해서 사용 -->
     </div>
-    <h2 class="detail-title">{{ post.title }}</h2>
+    <div class="title-row">
+      <h2 class="detail-title">{{ post.title }}</h2>
+      <a-dropdown placement="bottomRight">
+        <a class="ant-dropdown-link" @click.prevent>
+          <more-outlined style="font-size: 20px; cursor: pointer;" />
+        </a>
+        <template #overlay>
+          <a-menu>
+            <a-menu-item @click="editPost">수정하기</a-menu-item>
+            <a-menu-item danger @click="deletePost">삭제하기</a-menu-item>
+          </a-menu>
+        </template>
+      </a-dropdown>
+    </div>
 
     <div class="main-row">
       <div class="main-left">
         <a-carousel autoplay style="width:100%;border-radius:16px;">
-          <div>
+          <div v-for="(img, idx) in post.imageUrls" :key="idx">
             <div class="img-wrap">
-              <img class="main-img" :src="post.image" />
-
+              <img class="main-img" :src="img" />
             </div>
           </div>
         </a-carousel>
@@ -47,14 +105,14 @@ function addComment() {
         <div class="progress-card">
           <div class="progress-header">
             <span>
-              마감까지 {{ (post.target - post.raised).toLocaleString() }}원
+              마감까지 {{ (post.amount - post.currentAmount).toLocaleString() }}원
             </span>
             <span class="percent">
-              {{ ((post.raised / post.target) * 100).toFixed(1) }}%
+              {{ ((post.currentAmount / post.amount) * 100).toFixed(1) }}%
             </span>
           </div>
           <a-progress
-            :percent="Number(((post.raised / post.target) * 100).toFixed(1))"
+            :percent="Number(((post.currentAmount / post.amount) * 100).toFixed(1))"
             :stroke-color="mainColor"
             show-info="false"
           />
@@ -62,12 +120,12 @@ function addComment() {
             {{ post.raised ? post.raised.toLocaleString() + '원 모금' : '---' }}
           </div>
           <div class="progress-info">
-            <div>모금 시작일 <span>{{ post.startDate || '---' }}</span></div>
-            <div>모금목표 <span>{{ post.target ? post.target.toLocaleString() + '원' : '---' }}</span></div>
+            <div>모금 시작일 <span>{{ post.createdAt }}</span></div>
+            <div>모금목표 <span>{{ post.amount ? post.amount.toLocaleString() + '원' : '---' }}</span></div>
             <div>후원잔액까지 <span>
-              {{ (post.target - post.raised).toLocaleString() }}원
+              {{ (post.amount - post.currentAmount).toLocaleString() }}원
             </span></div>
-            <div>총 참여인원 <span>{{ post.participants || '---' }}명</span></div>
+            <div>총 참여인원 <span>{{ post.participants?.length || 0 }}명</span></div>
           </div>
           <a-button type="primary" class="donate-btn" :style="{background: mainColor, borderColor: mainColor}">
             곧장기부하기
@@ -75,12 +133,14 @@ function addComment() {
         </div>
       </div>
     </div>
+
+    <!-- 상세 내용 -->
     <div class="desc-section">
       <div class="desc-title">
         기부금이 <span style="color:#FFC107">곧장</span>
       </div>
       <div class="desc-box">
-        <div class="desc-block" v-html="post.desc"></div>
+        <div class="desc-block" v-html="post.content"></div>
       </div>
       <div class="stat-row">
         <div class="stat-col" v-for="(s, idx) in post.stat" :key="idx">
@@ -131,6 +191,16 @@ function addComment() {
   margin: 0 auto;
   padding: 40px 10px 60px 10px;
   font-family: 'Noto Sans KR', sans-serif;
+}
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.detail-title {
+  font-size: 21px;
+  font-weight: 700;
+  margin: 0;
 }
 .badge-row {
   display: flex;
