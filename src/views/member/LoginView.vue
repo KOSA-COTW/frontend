@@ -23,7 +23,21 @@
               로그인
             </a-button>
           </a-form>
+          <!-- 로그인 폼 아래 -->
+          <div class="social-login">
+            <a :href="`${API_BASE}/oauth2/authorization/google`" class="oauth-link" aria-label="Sign in with Google">
+              <img src="/button/google_login.png" alt="Sign in with Google" />
+            </a>
+            <a :href="`${API_BASE}/oauth2/authorization/kakao`" class="oauth-link kakao" aria-label="카카오로 로그인">
+              <img src="/button/kakao_login.png" alt="카카오로 로그인" />
+            </a>
+            <a :href="`${API_BASE}/oauth2/authorization/naver`" class="oauth-link naver" aria-label="네이버로 로그인">
+              <img src="/button/naver_login.png" alt="네이버로 로그인" />
+            </a>
+          </div>
+
         </div>
+
 
         <!-- 회원가입 유도 영역 -->
         <div class="signup-guide-section">
@@ -90,6 +104,14 @@ watch(
   }
 );
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
+function oauthLogin(provider) {
+  // Spring Security 표준 엔드포인트:
+  // /oauth2/authorization/{registrationId}
+  window.location.href = `${API_BASE}/oauth2/authorization/${provider}`;
+}
+
 const handleSubmit = async () => {
   if (!form.email || !form.password) {
     message.error('이메일과 비밀번호를 모두 입력해주세요.');
@@ -148,6 +170,7 @@ function goToSignUp() {
 
 .login-card {
   border-radius: 16px;
+  border: 1.2px solid #d9d9d9;  /* 굵기 & 색상 */
   padding: 0;
   overflow: hidden;
 }
@@ -207,9 +230,88 @@ function goToSignUp() {
 }
 
 .signup-btn {
-  border-color: #fbc02d;
-  color: #fbc02d;
+  border-color:  #00c851;
+  color:  #00c851;
 }
+
+
+.social-login {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  justify-content: center; /* 가운데 정렬 */
+}
+
+/* 클릭 영역까지 300x45로 고정 */
+.oauth-link {
+  display: inline-block;
+  width: 300px;
+  height: 45px;
+}
+
+/* 이미지를 박스에 정확히 맞추기 */
+.oauth-link img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* 원본 비율 유지, 필요 시 cover로 변경 */
+  display: block;      /* 밑줄/여백 제거 */
+}
+
+
+.social-btn {
+  height: 44px;
+  padding: 0;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.btn-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.btn-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+}
+
+/* Google (화이트 버튼) */
+.google-btn {
+  background: #ffffff;
+  border: 1px solid #dadce0;
+  color: #3c4043;
+}
+.google-btn:hover { border-color: #c6c6c6; }
+.google-btn:active { border-color: #a8a8a8; }
+.google-btn[disabled],
+.google-btn.ant-btn-loading { opacity: .8; }
+
+/* Kakao */
+.kakao-btn {
+  background: #FEE500;
+  border-color: #FEE500;
+  color: #191600;
+}
+.kakao-btn:hover { filter: brightness(0.98); }
+.kakao-btn:active { filter: brightness(0.96); }
+.kakao-btn[disabled],
+.kakao-btn.ant-btn-loading { opacity: .9; }
+
+/* Naver */
+.naver-btn {
+  background: #03C75A;
+  border-color: #03C75A;
+  color: #ffffff;
+}
+.naver-btn:hover { filter: brightness(1.03); }
+.naver-btn:active { filter: brightness(0.98); }
+.naver-btn[disabled],
+.naver-btn.ant-btn-loading { opacity: .9; }
+
 
 /* --------------------
    🔽 반응형 스타일

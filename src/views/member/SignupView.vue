@@ -87,6 +87,7 @@ import { reactive, ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import api from 'axios'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 const router = useRouter()
 const signupFormRef = ref(null)
@@ -175,7 +176,7 @@ const onSubmit = async () => {
       password: formData.password
     }
 
-    const response = await api.post('/api/auth/signup', payload)
+    const response = await axios.post('/api/auth/signup', payload)
 
     message.success('회원가입이 완료되었습니다!')
     console.log('서버 응답:', response)
