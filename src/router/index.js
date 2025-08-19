@@ -42,6 +42,12 @@ const router = createRouter({
       component: () => import('@/views/board/PostDetailView.vue'),
       props: true,
     },
+    {
+      path: '/posts/:id/edit',
+      name: 'postEdit',
+      component: () => import('@/views/board/PostEditView.vue'),
+      props: true
+    },
     // 특정 에러 타입별 라우트
     {
       path: '/error/:type',

@@ -2,15 +2,17 @@
 import { reactive, ref, computed } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import axios from 'axios'
+import dayjs from 'dayjs'
 
 export default {
   name: 'DonationEditor',
   setup() {
     const form = reactive({
       title: '',
-      category: undefined, // 백엔드 enum 값으로 전송
-      amount: '',          // 백엔드 필드명
+      category: undefined,
+      amount: '',
       content: '',
+      deadline: null,
       agreeTerms: false
     })
 
@@ -77,6 +79,7 @@ export default {
           form.category = undefined
           form.amount = ''
           form.content = ''
+          form.deadline = null
           form.agreeTerms = false
           previewImages.value = []
           message.success('초기화되었습니다.')
@@ -107,17 +110,17 @@ export default {
 
         const payload = {
           title: form.title,
-          category: form.category,           // 예: 'CHILD'
+          category: form.category,
           amount: Number(form.amount),
           content: form.content,
+          deadline: dayjs(form.deadline).format('YYYY-MM-DD'),
           imageUrls
         }
 
-        const accessToken = localStorage.getItem('accessToken')
-        const res = await axios.post('/api/posts', payload, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
+        const auth = localStorage.getItem('auth')
+       const accessToken = auth ? JSON.parse(auth).accessToken : null
+        const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/posts`, payload, {
+          headers: { access: accessToken } // 서버 JwtFilter가 'access' 헤더를 읽음
         })
 
         message.success('글이 성공적으로 등록되었습니다!')
@@ -226,6 +229,22 @@ export default {
                 <span class="currency-suffix">원</span>
               </a-input-group>
               <div style="margin-top:6px;color:#888;">표시: {{ amountDisplay }}원</div>
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <!-- 기부 마감일 -->
+        <a-row :gutter="24">
+          <a-col :span="24">
+            <a-form-item label="기부 마감일" name="deadline" :rules="[{ required: true, message: '마감일을 선택해주세요!' }]">
+              <a-date-picker
+                v-model:value="form.deadline"
+                style="width: 100%"
+                size="large"
+                format="YYYY-MM-DD"
+                placeholder="마감일을 선택하세요"
+                :disabled-date="(current) => current && current < Date.now()"
+              />
             </a-form-item>
           </a-col>
         </a-row>
