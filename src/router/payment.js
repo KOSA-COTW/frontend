@@ -22,5 +22,11 @@ export const paymentRoutes = [
     name: 'MyPayments',
     component: () => import('@/views/payment/MyPayments.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/payment/history',
+    name: 'PaymentHistory',
+    component: () => import('@/views/payment/PaymentHistoryView.vue'),
+    meta: { requiresAuth: true }
   }
 ]
