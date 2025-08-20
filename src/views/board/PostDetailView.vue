@@ -5,7 +5,7 @@ import { MoreOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePaymentStore } from '@/stores/payment'
-import api from '@/utils/axios'
+import { usePostStore } from '@/stores/post'
 const mainColor = '#00C851'
 const newComment = ref('')
 const comments = ref([])
@@ -26,18 +26,17 @@ const postId = route.params.id
 const post = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const postStore = usePostStore()
 
-async function fetchPostDetail() {
+onMounted(async () => {
   try {
-    const data = await api.get(`/api/posts/${postId}`)
-    post.value = data
+    post.value = await postStore.fetchPostDetail(postId)
   } catch (err) {
-    console.error('게시글 불러오기 실패:', err)
     error.value = '게시글을 불러오는 중 오류가 발생했습니다.'
   } finally {
     loading.value = false
   }
-}
+})
 
 function addComment() {
   if (newComment.value.trim()) {
@@ -47,18 +46,18 @@ function addComment() {
 }
 
 async function deletePost() {
-  if (!confirm('정말 삭제하시겠습니까?')) return
-  try {
-    await api.delete(`/api/posts/${postId}`)
-    alert('삭제 완료!')
-    router.push('/') // 삭제 후 메인으로 이동
-  } catch (err) {
-    console.error('삭제 실패:', err)
-    alert(err?.response?.status === 403
-     ? '삭제 권한이 없습니다.'
-     : '삭제 중 오류가 발생했습니다.')
-  }
-}
+   if (!confirm('정말 삭제하시겠습니까?')) return
+   try {
+     await postStore.deletePost(postId)
+     alert('삭제 완료!')
+     router.push('/')
+   } catch (err) {
+     console.error('삭제 실패:', err)
+     alert(err?.response?.status === 403
+       ? '삭제 권한이 없습니다.'
+       : '삭제 중 오류가 발생했습니다.')
+   }
+ }
 
 function editPost() {
   router.push(`/posts/${postId}/edit`)
@@ -110,8 +109,6 @@ function proceedToPayment() {
   window.location.href = url
 }
 
-// 컴포넌트 로드 시 실행
-onMounted(fetchPostDetail)
 </script>
 
 <template>
@@ -119,7 +116,6 @@ onMounted(fetchPostDetail)
     <!-- 상단 카테고리 뱃지 & 제목 -->
     <div class="badge-row">
       <span class="badge">{{ post.category }}</span>
-      <!-- 필요하면 badge2, badge3도 store 데이터에 추가해서 사용 -->
     </div>
     <div class="title-row">
       <h2 class="detail-title">{{ post.title }}</h2>
@@ -156,30 +152,30 @@ onMounted(fetchPostDetail)
         <div class="progress-card">
           <div class="progress-header">
             <span>
-              마감까지 {{ (post.amount - post.currentAmount).toLocaleString() }}원
+              마감까지 {{ post.remaining.toLocaleString() }}원
             </span>
             <span class="percent">
-              {{ ((post.currentAmount / post.amount) * 100).toFixed(1) }}%
+              {{ post.percent }}%
             </span>
           </div>
           <a-progress
-            :percent="Number(((post.currentAmount / post.amount) * 100).toFixed(1))"
+            :percent="post.percent"
             :stroke-color="mainColor"
             :show-info="false"
           />
           <div class="current">
-            {{ post.raised ? post.raised.toLocaleString() + '원 모금' : '---' }}
+            {{ post.currentAmount ? post.currentAmount.toLocaleString() + '원 모금' : '---' }}
           </div>
           <div class="progress-info">
             <div>모금 시작일 <span>{{ post.createdAt }}</span></div>
-            <div>모금목표 <span>{{ post.amount ? post.amount.toLocaleString() + '원' : '---' }}</span></div>
-            <div>후원잔액까지 <span>
-              {{ (post.amount - post.currentAmount).toLocaleString() }}원
-            </span></div>
-            <div>총 참여인원 <span>{{ post.participants?.length || 0 }}명</span></div>
+            <div>모금목표 <span>{{ post.amount.toLocaleString() }}원</span></div>
+            <div>후원잔액까지 <span>{{ post.remaining.toLocaleString() }}원</span></div>
+            <div>총 참여인원 <span>{{ post.donorCount }}명</span></div>
+            <div v-if="post.overfunded > 0">초과모금 <span style="color: #00C851;">{{ post.overfunded.toLocaleString() }}원</span></div>
+            <div>마감까지 <span>{{ post.daysLeft }}일</span></div>
           </div>
-          <a-button type="primary" class="donate-btn" :style="{background: mainColor, borderColor: mainColor}" @click="openDonationModal">
-            곧장기부하기
+          <a-button type="primary" class="donate-btn" :style="{background: mainColor, borderColor: mainColor}" @click="openDonationModal" :disabled="post.status === 'COMPLETED'">
+            {{ post.status === 'COMPLETED' ? '마감됨' : '곧장기부하기' }}
           </a-button>
         </div>
       </div>
@@ -233,9 +229,9 @@ onMounted(fetchPostDetail)
     </div>
 
     <!-- 기부 모달 -->
-    <a-modal 
-      v-model:open="donationModalVisible" 
-      title="기부하기" 
+    <a-modal
+      v-model:open="donationModalVisible"
+      title="기부하기"
       :footer="null"
       width="500px"
       @cancel="closeDonationModal"
@@ -249,8 +245,8 @@ onMounted(fetchPostDetail)
         <div class="amount-section">
           <h4>기부 금액</h4>
           <div class="quick-amounts">
-            <button 
-              v-for="amount in quickAmounts" 
+            <button
+              v-for="amount in quickAmounts"
               :key="amount"
               @click="setQuickAmount(amount)"
               class="quick-amount-btn"
@@ -282,8 +278,8 @@ onMounted(fetchPostDetail)
           <a-button @click="closeDonationModal" style="margin-right: 8px;">
             취소
           </a-button>
-          <a-button 
-            type="primary" 
+          <a-button
+            type="primary"
             :style="{background: mainColor, borderColor: mainColor}"
             @click="proceedToPayment"
           >
