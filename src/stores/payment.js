@@ -6,6 +6,18 @@ export const usePaymentStore = defineStore('payment', () => {
   const payments = ref([])
   const loading = ref(false)
   const error = ref(null)
+  const donationAmount = ref(10000) // 기부금액 상태 추가
+
+  // 기부금액 설정 액션 추가
+  const setDonationAmount = (amount) => {
+    console.log(`[PaymentStore] Setting amount to: ${amount}`);
+    if (amount >= 1000) {
+      donationAmount.value = amount;
+      console.log(`[PaymentStore] donationAmount is now: ${donationAmount.value}`);
+    } else {
+      console.error('Donation amount must be at least 1000');
+    }
+  }
 
   // 내 결제 내역 조회
   const fetchMyPayments = async () => {
@@ -55,8 +67,10 @@ export const usePaymentStore = defineStore('payment', () => {
     payments,
     loading,
     error,
+    donationAmount,
+    setDonationAmount,
     fetchMyPayments,
     createPayment,
     confirmPayment,
   }
-})
+}, { persist: true })
