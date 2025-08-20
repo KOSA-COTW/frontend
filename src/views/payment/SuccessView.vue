@@ -73,7 +73,7 @@ const goToHome = () => {
 }
 
 const goToMyPayments = () => {
-  router.push('/my/payments')
+  router.push('/payment/history')
 }
 
 onMounted(async () => {

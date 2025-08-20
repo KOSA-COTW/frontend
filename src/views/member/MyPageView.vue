@@ -5,7 +5,7 @@
       <a-col :xs="24" :sm="6" :md="5" :lg="5" :xl="4">
         <div class="sidebar">
           <ul>
-            <li v-for="item in menuItems" :key="item" :class="{ active: selectedMenu === item }" @click="selectedMenu = item">
+            <li v-for="item in menuItems" :key="item" :class="{ active: selectedMenu === item }" @click="handleMenuClick(item)">
               {{ item }}
             </li>
           </ul>
@@ -14,52 +14,74 @@
 
       <!-- 우측 본문 -->
       <a-col :xs="24" :sm="18" :md="17" :lg="15" :xl="14">
-        <!-- 상단 카드 -->
-        <a-card class="top-card">
-          <div class="top-section">
-            <!-- 사용자 프로필 사진 들어갈 부분 -->
-            <a-avatar :size="64" src="https://via.placeholder.com/64" />
-            <div class="user-info">
-              <p class="welcome-text">
-                {{ userName }}님,<br />함께한지 <span class="highlight">1일</span>이 되었어요.
-              </p>
-              <div class="link-buttons">
-                <a-button type="link" size="small">내정보수정</a-button>
-                <a-divider type="vertical" />
-                <a-button type="link" size="small" @click="logout">로그아웃</a-button>
-              </div>
+        <!-- 정보수정 섹션 -->
+        <div v-if="selectedMenu === '정보수정'">
+          <!-- 상단 카드 -->
+          <a-card class="top-card">
+            <div class="top-section">
+              <!-- 사용자 프로필 사진 들어갈 부분 -->
+              <a-avatar :size="64" src="https://via.placeholder.com/64" />
+              <div class="user-info">
+                <p class="welcome-text">
+                  {{ userName }}님,<br />함께한지 <span class="highlight">1일</span>이 되었어요.
+                </p>
+                <div class="link-buttons">
+                  <a-button type="link" size="small">내정보수정</a-button>
+                  <a-divider type="vertical" />
+                  <a-button type="link" size="small" @click="logout">로그아웃</a-button>
+                </div>
 
-              <div class="invite-box">
-                <div class="invite-header">
-                  <div>
-                    <p class="invite-title">친구 초대하기</p>
+                <div class="invite-box">
+                  <div class="invite-header">
+                    <div>
+                      <p class="invite-title">친구 초대하기</p>
+                    </div>
+                  </div>
+                  <div class="invite-summary">
+                    <span>초대한 친구 <b>0명</b></span>
+
                   </div>
                 </div>
-                <div class="invite-summary">
-                  <span>초대한 친구 <b>0명</b></span>
-
-                </div>
               </div>
             </div>
-          </div>
-        </a-card>
+          </a-card>
 
-        <!-- 기부내역 -->
-        <a-card class="donation-card">
-          <div class="donation-summary">
-            <div>
-              <p class="label">총 기부금액</p>
-              <p class="amount">0원</p>
+          <!-- 기부내역 요약 카드 -->
+          <a-card class="donation-card">
+            <div class="donation-summary">
+              <div>
+                <p class="label">총 기부금액</p>
+                <p class="amount">0원</p>
+              </div>
+              <div class="count">
+                <p>일시기부 <b>0회</b></p>
+                <p>정기기부 <b>0회</b></p>
+              </div>
             </div>
-            <div class="count">
-              <p>일시기부 <b>0회</b></p>
-              <p>정기기부 <b>0회</b></p>
+            <div class="more-link">
+              <a-button type="link" size="small" @click="handleMenuClick('기부내역')">자세히보기 ></a-button>
             </div>
-          </div>
-          <div class="more-link">
-            <a-button type="link" size="small">자세히보기 ></a-button>
-          </div>
-        </a-card>
+          </a-card>
+        </div>
+
+        <!-- 기부내역 섹션 -->
+        <div v-else-if="selectedMenu === '기부내역'" class="payment-history-section">
+          <PaymentHistoryView 
+            title="내 기부 내역"
+            subtitle="지금까지의 기부 활동을 확인해보세요"
+            :hide-stats="false"
+          />
+        </div>
+
+        <!-- 다른 메뉴 섹션들 -->
+        <div v-else class="other-menu-section">
+          <a-card>
+            <div style="text-align: center; padding: 60px 20px;">
+              <h3>{{ selectedMenu }}</h3>
+              <p>{{ selectedMenu }} 기능은 준비 중입니다.</p>
+            </div>
+          </a-card>
+        </div>
       </a-col>
     </a-row>
   </div>
@@ -70,6 +92,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { message } from 'ant-design-vue';
+import PaymentHistoryView from '@/views/payment/PaymentHistoryView.vue';
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -77,6 +100,14 @@ const auth = useAuthStore();
 const userName = '박주성';
 const menuItems = ['정보수정', '기부내역', '포인트내역', '증서출급', '기부금영수증'];
 const selectedMenu = ref('정보수정');
+
+// 메뉴 클릭 핸들러
+const handleMenuClick = (item) => {
+  console.log('[MyPageView] Menu clicked:', item)
+  console.log('[MyPageView] Current selectedMenu before:', selectedMenu.value)
+  selectedMenu.value = item;
+  console.log('[MyPageView] Current selectedMenu after:', selectedMenu.value)
+};
 
 // 로그아웃
 const logout = () => {
@@ -220,6 +251,26 @@ const logout = () => {
 .ri-share-line {
   font-size: 16px;
   color: #666;
+}
+
+/* PaymentHistoryView 통합 스타일 */
+.payment-history-section {
+  margin-top: 0;
+}
+
+.payment-history-section :deep(.payment-history) {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.payment-history-section :deep(.payment-history-header) {
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.other-menu-section {
+  margin-top: 0;
 }
 
 @media (max-width: 768px) {

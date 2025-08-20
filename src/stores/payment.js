@@ -63,6 +63,29 @@ export const usePaymentStore = defineStore('payment', () => {
     }
   }
 
+  // 내 결제 내역 조회 (필터링 및 페이지네이션 지원)
+  const getMyPayments = async (params = {}) => {
+    console.log('[PaymentStore] getMyPayments called with params:', params)
+    
+    // 인증 상태 확인
+    const authData = localStorage.getItem('auth')
+    console.log('[PaymentStore] Auth data exists:', !!authData)
+    if (authData) {
+      const parsed = JSON.parse(authData)
+      console.log('[PaymentStore] Access token exists:', !!parsed.accessToken)
+    }
+    
+    try {
+      const response = await paymentAPI.getMyPayments(params)
+      console.log('[PaymentStore] API call successful')
+      return response
+    } catch (err) {
+      console.error('[PaymentStore] API call failed:', err)
+      error.value = err.response?.data?.message || '결제 내역을 불러오는데 실패했습니다.'
+      throw err
+    }
+  }
+
   return {
     payments,
     loading,
@@ -72,5 +95,6 @@ export const usePaymentStore = defineStore('payment', () => {
     fetchMyPayments,
     createPayment,
     confirmPayment,
+    getMyPayments,
   }
 }, { persist: true })
