@@ -135,19 +135,29 @@ const requestPayment = async () => {
   loading.value = true
 
   try {
-    // 1. 서버에 결제 정보 저장 (PaymentEvent 생성)
-    const paymentData = {
-      postId: Number(route.params.postId),
-      amount: amount.value,
+    // 1. orderId 먼저 생성 (백엔드와 독립적으로)
+    const orderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    console.log('Generated orderId:', orderId)
+
+    // 2. 서버에 결제 정보 저장 시도 (실패해도 결제는 진행)
+    let paymentResponse = null
+    try {
+      const paymentData = {
+        postId: Number(route.params.postId),
+        amount: amount.value,
+        orderId: orderId // orderId도 백엔드에 전달
+      }
+      paymentResponse = await paymentStore.createPayment(paymentData)
+      console.log('Backend payment created:', paymentResponse)
+    } catch (backendError) {
+      console.warn('Backend payment creation failed, proceeding with Toss payment only:', backendError)
     }
 
-    const paymentResponse = await paymentStore.createPayment(paymentData)
-
-    // 2. Toss Payments로 결제 요청
+    // 3. Toss Payments로 결제 요청 (백엔드 실패와 관계없이 진행)
     await paymentWidget.value.requestPayment({
-      orderId: paymentResponse.orderId || `order_${Date.now()}`,
+      orderId: orderId,
       orderName: post.value?.title || '기부금',
-      successUrl: `${window.location.origin}/payment/success`,
+      successUrl: `${import.meta.env.VITE_API_BASE_URL}/api/payments/success`,
       failUrl: `${window.location.origin}/payment/fail`,
     })
   } catch (error) {
