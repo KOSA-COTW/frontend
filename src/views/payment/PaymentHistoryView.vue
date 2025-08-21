@@ -449,7 +449,7 @@ onMounted(() => {
 
 .payment-item {
   padding: 24px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .payment-item:last-child {
@@ -544,7 +544,7 @@ onMounted(() => {
 
 .payment-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 16px;
   padding-top: 12px;
   border-top: 1px solid #f3f4f6;
