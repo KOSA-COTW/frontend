@@ -27,12 +27,10 @@ export const usePostStore = defineStore('post', () => {
 
   // 카테고리 설정 액션
   const setCategory = (name) => {
-    console.log(`[PostStore] Setting category to: ${name}`)
     selectedCategory.value = name
   }
 
   const clearCategory = () => {
-    console.log('[PostStore] Clearing category')
     selectedCategory.value = null
   }
 
@@ -46,7 +44,6 @@ export const usePostStore = defineStore('post', () => {
     loading.value = true
     error.value = null
     try {
-      console.log('[PostStore] Fetching home posts')
       posts.value = await postAPI.getHomePosts()
     } catch (err) {
       error.value = err.response?.data?.message || '메인 게시글을 불러오는데 실패했습니다.'
@@ -61,7 +58,6 @@ export const usePostStore = defineStore('post', () => {
     loading.value = true
     error.value = null
     try {
-      console.log('[PostStore] Fetching all public posts')
       posts.value = await postAPI.getAllPublicPosts()
     } catch (err) {
       error.value = err.response?.data?.message || '공개 게시글을 불러오는데 실패했습니다.'
@@ -76,7 +72,6 @@ export const usePostStore = defineStore('post', () => {
     loading.value = true
     error.value = null
     try {
-      console.log('[PostStore] Fetching my posts')
       myPosts.value = await postAPI.getMyPosts()
     } catch (err) {
       error.value = err.response?.data?.message || '내 게시글을 불러오는데 실패했습니다.'
@@ -91,7 +86,6 @@ export const usePostStore = defineStore('post', () => {
     loading.value = true
     error.value = null
     try {
-      console.log('[PostStore] Fetching post detail:', postId)
       postDetail.value = await postAPI.getPostById(postId)
       return postDetail.value
     } catch (err) {
@@ -108,7 +102,6 @@ export const usePostStore = defineStore('post', () => {
     loading.value = true
     error.value = null
     try {
-      console.log('[PostStore] Creating post:', postData)
       const response = await postAPI.createPost(postData)
       // 생성 후 관련 목록 갱신
       await fetchMyPosts()

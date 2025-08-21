@@ -1,13 +1,15 @@
 <script setup>
 import { reactive, ref, computed, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePostStore } from '@/stores/post'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const postId = route.params.id
 const postStore = usePostStore()
+const auth = useAuthStore()
 
 // 수정용 form
 const form = reactive({
@@ -20,6 +22,8 @@ const form = reactive({
 })
 
 const submitting = ref(false)
+const loading = ref(true)
+const canEdit = ref(true)
 
 // 금액 표시용
 const amountDisplay = computed(() =>
@@ -31,23 +35,60 @@ const formatAmount = e => {
 
 // 기존 데이터 불러오기
 const loadPost = async () => {
+  loading.value = true
   try {
     const data = await postStore.fetchPostDetail(postId)
-    if (!data) return
+    if (!data) {
+      message.error('존재하지 않는 게시글입니다.')
+      router.replace('/posts')
+      return
+    }
     form.title = data.title
     form.category = data.category
     form.amount = data.amount
     form.content = data.content
     form.deadline = data.deadline // 프론트에서만 표시
+
+    // 권한 체크: 본인 글이거나 관리자만 통과
+    // 백엔드 응답에 authorEmail 같은 필드가 있다고 가정 (없으면 제거)
+    const authorEmail = data.authorEmail || data.author?.email
+    const myEmail = auth.user?.email
+    const isAdmin = auth.isAdmin === true
+
+    canEdit.value = isAdmin || (!!authorEmail && !!myEmail && authorEmail === myEmail)
+
+    if (!canEdit.value) {
+      Modal.warning({
+        title: '수정 권한이 없습니다',
+        content: '본인이 작성한 글만 수정할 수 있습니다.',
+        onOk: () => router.replace(`/posts/${postId}`),
+      })
+    }
   } catch (err) {
-    console.error(err)
-    message.error('게시글 정보를 불러오는 중 오류가 발생했습니다.')
+    // 401/403 등 서버에서 막힌 경우
+    if (err?.response?.status === 403) {
+      Modal.error({
+        title: '권한 없음',
+        content: '이 글을 수정할 권한이 없습니다.',
+        onOk: () => router.replace(`/posts/${postId}`),
+      })
+    } else if (err?.response?.status === 404) {
+      message.error('존재하지 않는 게시글입니다.')
+      router.replace('/posts')
+    } else if (err?.code === 'ERR_NETWORK') {
+      message.error('서버와 연결할 수 없습니다. 네트워크 상태를 확인해주세요.')
+    } else {
+      message.error(err?.response?.data?.message || '게시글 정보를 불러오는 중 오류가 발생했습니다.')
+    }
+  } finally {
+    loading.value = false
   }
 }
 onMounted(loadPost)
 
 // 수정 제출
 const onSubmit = async () => {
+  if (!canEdit.value) return
   submitting.value = true
   try {
     const payload = {
@@ -57,14 +98,31 @@ const onSubmit = async () => {
       content: form.content
       // deadline, imageUrls 제외
     }
-
     await postStore.updatePost(postId, payload)
-
     message.success('글이 성공적으로 수정되었습니다!')
     router.push(`/posts/${postId}`)
   } catch (err) {
-    console.error(err)
-    message.error('수정 중 오류가 발생했습니다.')
+    // ✅ 에러 케이스별 메시지
+    if (err?.response?.status === 401) {
+      Modal.warning({
+        title: '로그인이 필요합니다',
+        content: '로그인 후 다시 시도해주세요.',
+        onOk: () => router.push('/login'),
+      })
+    } else if (err?.response?.status === 403) {
+      Modal.error({
+        title: '권한 없음',
+        content: '이 글을 수정할 권한이 없습니다.',
+        onOk: () => router.replace(`/posts/${postId}`),
+      })
+    } else if (err?.response?.status === 404) {
+      message.error('존재하지 않는 게시글입니다.')
+      router.replace('/posts')
+    } else if (err?.code === 'ERR_NETWORK') {
+      message.error('서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.')
+    } else {
+      message.error(err?.response?.data?.message || '수정 중 오류가 발생했습니다.')
+    }
   } finally {
     submitting.value = false
   }

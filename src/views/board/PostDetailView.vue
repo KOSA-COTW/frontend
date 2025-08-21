@@ -1,8 +1,8 @@
 <script setup>
-import { ref, onMounted  } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MoreOutlined } from '@ant-design/icons-vue'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePaymentStore } from '@/stores/payment'
 import { usePostStore } from '@/stores/post'
@@ -44,20 +44,67 @@ function addComment() {
     newComment.value = ''
   }
 }
-
+// 작성자 or 관리자만 수정/삭제 가능
+const canManage = computed(() => {
+  const myEmail = auth.user?.email
+  const isAdmin = auth.isAdmin === true
+  const authorEmail = post.value?.authorEmail || post.value?.author?.email
+  return !!(isAdmin || (myEmail && authorEmail && myEmail === authorEmail))
+})
 async function deletePost() {
-   if (!confirm('정말 삭제하시겠습니까?')) return
-   try {
-     await postStore.deletePost(postId)
-     alert('삭제 완료!')
-     router.push('/')
-   } catch (err) {
-     console.error('삭제 실패:', err)
-     alert(err?.response?.status === 403
-       ? '삭제 권한이 없습니다.'
-       : '삭제 중 오류가 발생했습니다.')
-   }
- }
+  if (!auth.isLoggedIn) {
+    Modal.warning({
+      title: '로그인이 필요합니다',
+      content: '로그인 후 다시 시도해주세요.',
+      onOk: () => router.push('/login'),
+    })
+    return
+  }
+
+  if (!canManage.value) {
+    Modal.error({
+      title: '삭제 권한이 없습니다',
+      content: '본인이 작성한 글만 삭제할 수 있습니다.',
+    })
+    return
+  }
+
+  Modal.confirm({
+    title: '정말 삭제하시겠습니까?',
+    okText: '삭제',
+    okButtonProps: { danger: true },
+    cancelText: '취소',
+    async onOk() {
+      try {
+        await postStore.deletePost(postId)
+        message.success('삭제 완료!')
+        router.push('/')
+      } catch (err) {
+        console.error('삭제 실패:', err)
+        const status = err?.response?.status
+        if (status === 401) {
+          Modal.warning({
+            title: '로그인이 필요합니다',
+            content: '로그인 후 다시 시도해주세요.',
+            onOk: () => router.push('/login'),
+          })
+        } else if (status === 403) {
+          Modal.error({
+            title: '삭제 권한이 없습니다',
+            content: '본인이 작성한 글만 삭제할 수 있습니다.',
+          })
+        } else if (status === 404) {
+          message.error('존재하지 않는 게시글입니다.')
+          router.replace('/posts')
+        } else if (err?.code === 'ERR_NETWORK') {
+          message.error('서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.')
+        } else {
+          message.error(err?.response?.data?.message || '삭제 중 오류가 발생했습니다.')
+        }
+      }
+    },
+  })
+}
 
 function editPost() {
   router.push(`/posts/${postId}/edit`)

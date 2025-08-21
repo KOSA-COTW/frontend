@@ -1,63 +1,118 @@
 // utils/post.js
 import api from './axios.js'
 
+function buildAccessConfig(extra = {}) {
+  try {
+    const token = JSON.parse(localStorage.getItem('auth') || '{}')?.accessToken
+    if (token) {
+      return {
+        ...extra,
+        headers: {
+          ...(extra.headers || {}),
+          access: token,
+        },
+      }
+    }
+  } catch (e) {
+    console.error('[PostAPI] Failed to read token:', e)
+  }
+  return extra
+}
+
 export const postAPI = {
   // 메인: 공개 + 마감 임박 6개
   getHomePosts: async () => {
-    console.log('[PostAPI] getHomePosts called')
-    const response = await api.get('/api/posts/home')
-    return response
+    try {
+      const response = await api.get('/api/posts/home')
+      return response
+    } catch (error) {
+      console.error('[PostAPI] getHomePosts failed:', error)
+      throw error
+    }
   },
 
   // 전체 공개글
   getAllPublicPosts: async () => {
-    console.log('[PostAPI] getAllPublicPosts called')
-    const response = await api.get('/api/posts')
-    return response
+    try {
+      const response = await api.get('/api/posts')
+      return response
+    } catch (error) {
+      console.error('[PostAPI] getAllPublicPosts failed:', error)
+      throw error
+    }
   },
 
-  // 단건 조회
+  // 단건 조회 (공개/비공개 혼합: 토큰 있으면 함께 보냄)
   getPostById: async (postId) => {
-    console.log('[PostAPI] getPostById:', postId)
-    const response = await api.get(`/api/posts/${postId}`)
-    return response
+    try {
+      const response = await api.get(`/api/posts/${postId}`, buildAccessConfig())
+      return response
+    } catch (error) {
+      console.error('[PostAPI] getPostById failed:', error)
+      throw error
+    }
   },
 
-  // 내가 쓴 글
+  // 내가 쓴 글 (인증 필요)
   getMyPosts: async () => {
-    console.log('[PostAPI] getMyPosts called')
-    const response = await api.get('/api/posts/me')
-    return response
+    try {
+      const response = await api.get('/api/posts/me', buildAccessConfig())
+      return response
+    } catch (error) {
+      console.error('[PostAPI] getMyPosts failed:', error)
+      throw error
+    }
   },
 
-  // 생성 (ADMIN/ORGANIZATION) -> 서버에서 Long(id) 반환
+  // 생성
   createPost: async (postData) => {
-    console.log('[PostAPI] createPost payload:', postData)
-    const response = await api.post('/api/posts', postData)
-    return response
+    try {
+      const response = await api.post('/api/posts', postData, buildAccessConfig())
+      return response // 서버가 Long id 반환
+    } catch (error) {
+      console.error('[PostAPI] createPost failed:', error)
+      throw error
+    }
   },
 
-  // 수정 (작성자/관리자)
+  // 수정
   updatePost: async (postId, updateData) => {
-    console.log('[PostAPI] updatePost:', postId, updateData)
-    const response = await api.patch(`/api/posts/${postId}`, updateData)
-    return response
+    try {
+      const response = await api.patch(
+        `/api/posts/${postId}`,
+        updateData,
+        buildAccessConfig()
+      )
+      return response
+    } catch (error) {
+      console.error('[PostAPI] updatePost failed:', error)
+      throw error
+    }
   },
 
-  // 삭제 (작성자/관리자)
+  // 삭제
   deletePost: async (postId) => {
-    console.log('[PostAPI] deletePost:', postId)
-    const response = await api.delete(`/api/posts/${postId}`)
-    return response
+    try {
+      const response = await api.delete(`/api/posts/${postId}`, buildAccessConfig())
+      return response
+    } catch (error) {
+      console.error('[PostAPI] deletePost failed:', error)
+      throw error
+    }
   },
 
-  // 공개 여부 변경 (관리자)
+  // 공개 여부 변경
   changeVisibility: async (postId, isPublic) => {
-    console.log('[PostAPI] changeVisibility:', { postId, isPublic })
-    // 쿼리 파라미터 방식 또는 params 옵션 모두 가능
-    const response = await api.patch(`/api/posts/${postId}/visibility`, null, {
-      params: { isPublic }
-    })
-    return response
+    try {
+      const response = await api.patch(
+        `/api/posts/${postId}/visibility`,
+        null,
+        buildAccessConfig({ params: { isPublic } })
+      )
+      return response
+    } catch (error) {
+      console.error('[PostAPI] changeVisibility failed:', error)
+      throw error
+    }
   },
 }
