@@ -18,6 +18,7 @@
           <a-select-option value="DONE">완료</a-select-option>
           <a-select-option value="FAILED">실패</a-select-option>
           <a-select-option value="PENDING">대기중</a-select-option>
+          <a-select-option value="CANCELED">취소</a-select-option>
         </a-select>
 
         <a-range-picker 
@@ -88,7 +89,7 @@
             <p class="payment-date">{{ formatDate(payment.createdAt) }}</p>
           </div>
           <div class="payment-amount">
-            <span class="amount">{{ payment.amount.toLocaleString() }}원</span>
+            <span class="amount" :class="{ 'cancelled-amount': payment.status === 'CANCELED' }">{{ payment.amount.toLocaleString() }}원</span>
             <span 
               class="status-badge" 
               :class="getStatusClass(payment.status)"
@@ -109,7 +110,7 @@
           </div>
         </div>
 
-        <div class="payment-actions" v-if="payment.status === 'DONE' || payment.status === 'SUCCESS'">
+        <div class="payment-actions" v-if="(payment.status === 'DONE' || payment.status === 'SUCCESS') && payment.status !== 'CANCELED'">
           <a-button 
             type="link" 
             size="small"
@@ -118,23 +119,32 @@
           >
             게시글 보기
           </a-button>
+          <a-button 
+            type="primary"
+            danger
+            size="small"
+            @click="cancelPayment(payment.paymentKey)"
+            class="cancel-button"
+          >
+            취소
+          </a-button>
         </div>
       </div>
+    </div>
 
-      <!-- 페이지네이션 -->
-      <div class="pagination-section">
-        <a-pagination
-          v-model:current="pagination.current"
-          v-model:page-size="pagination.pageSize"
-          :total="pagination.total"
-          :show-size-changer="true"
-          :page-size-options="['10', '20', '50']"
-          :show-quick-jumper="true"
-          :show-total="(total, range) => `${range[0]}-${range[1]} / 총 ${total}개`"
-          @change="onPageChange"
-          @showSizeChange="onPageSizeChange"
-        />
-      </div>
+    <!-- 페이지네이션 -->
+    <div class="pagination-section" v-if="payments.length > 0">
+      <a-pagination
+        v-model:current="pagination.current"
+        v-model:page-size="pagination.pageSize"
+        :total="pagination.total"
+        :show-size-changer="true"
+        :page-size-options="['10', '20', '50']"
+        :show-quick-jumper="true"
+        :show-total="(total, range) => `${range[0]}-${range[1]} / 총 ${total}개`"
+        @change="onPageChange"
+        @showSizeChange="onPageSizeChange"
+      />
     </div>
 
     <!-- 빈 상태 -->
@@ -157,6 +167,7 @@ import { useRouter } from 'vue-router'
 import { usePaymentStore } from '@/stores/payment'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
+import axios from '@/utils/axios'
 
 // Props
 const props = defineProps({
@@ -292,6 +303,7 @@ const getStatusClass = (status) => {
     case 'SUCCESS': return 'status-success'
     case 'FAILED': return 'status-failed'
     case 'PENDING': return 'status-pending'
+    case 'CANCELED': return 'status-cancel'
     default: return 'status-unknown'
   }
 }
@@ -302,6 +314,7 @@ const getStatusText = (status) => {
     case 'SUCCESS': return '성공'
     case 'FAILED': return '실패'
     case 'PENDING': return '대기중'
+    case 'CANCELED': return '취소'
     default: return '알 수 없음'
   }
 }
@@ -324,6 +337,20 @@ const onPageSizeChange = (current, size) => {
   pagination.current = 1
   pagination.pageSize = size
   fetchPayments()
+}
+
+const cancelPayment = async (paymentKey) => {
+  try {
+    const response = await axios.post('/api/payments/cancel', {
+      paymentKey: paymentKey
+    })
+    
+    message.success('결제가 취소되었습니다.')
+    fetchPayments() // 목록 새로고침
+  } catch (error) {
+    console.error('결제 취소 실패:', error)
+    message.error(error.response?.data?.message || '결제 취소에 실패했습니다.')
+  }
 }
 
 // 라이프사이클
@@ -489,6 +516,11 @@ onMounted(() => {
   color: #6b7280;
 }
 
+.status-cancel {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .payment-details {
   margin-bottom: 16px;
 }
@@ -512,9 +544,21 @@ onMounted(() => {
 
 .payment-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 16px;
   padding-top: 12px;
   border-top: 1px solid #f3f4f6;
+}
+
+.cancel-button {
+  background-color: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: white !important;
+}
+
+.cancelled-amount {
+  text-decoration: line-through;
+  color: #9ca3af !important;
 }
 
 .pagination-section {
