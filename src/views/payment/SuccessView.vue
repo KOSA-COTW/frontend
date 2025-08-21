@@ -27,7 +27,7 @@
         </div>
         <div class="detail-row">
           <span class="label">후원 게시글</span>
-          <span class="value">{{ paymentInfo.orderName }}</span>
+          <span class="value">{{ paymentInfo.postTitle }}</span>
         </div>
         <div class="detail-row">
           <span class="label">후원 금액</span>
@@ -77,26 +77,56 @@ const goToMyPayments = () => {
 }
 
 onMounted(async () => {
+  console.log('[SuccessView] Route query params:', route.query)
+  
   const orderId = route.query.orderId
+  const paymentKey = route.query.paymentKey
 
   if (orderId) {
     try {
       // 결제 내역을 다시 조회해서 최신 정보 표시
-      await paymentStore.fetchMyPayments()
-      const payments = paymentStore.payments
-      paymentInfo.value = payments.find((p) => p.orderId === orderId)
+      const response = await paymentStore.getMyPayments()
+      console.log('[SuccessView] Payment store response:', response)
+      
+      let payments = []
+      if (Array.isArray(response)) {
+        payments = response
+      } else if (response && response.content) {
+        payments = response.content
+      } else if (response && response.data) {
+        payments = response.data
+      }
+      
+      console.log('[SuccessView] Payments:', payments)
+      
+      // orderId 또는 paymentKey로 결제 정보 찾기
+      paymentInfo.value = payments.find((p) => 
+        p.orderId === orderId || p.paymentKey === paymentKey
+      )
+      
+      console.log('[SuccessView] Found payment info:', paymentInfo.value)
 
       if (!paymentInfo.value) {
         // 임시로 쿼리 파라미터 정보 사용
         paymentInfo.value = {
           orderId: orderId,
-          orderName: '후원 완료',
+          orderName: route.query.orderName || '후원 완료',
           amount: parseInt(route.query.amount) || 0,
-          type: 'NORMAL',
+          type: route.query.type || 'NORMAL',
+          postTitle: route.query.postTitle || route.query.orderName || '후원 게시글'
         }
+        console.log('[SuccessView] Using fallback payment info:', paymentInfo.value)
       }
     } catch (error) {
       console.error('Failed to fetch payment info:', error)
+      // 에러 시에도 쿼리 파라미터 정보 사용
+      paymentInfo.value = {
+        orderId: orderId,
+        orderName: route.query.orderName || '후원 완료', 
+        amount: parseInt(route.query.amount) || 0,
+        type: route.query.type || 'NORMAL',
+        postTitle: route.query.postTitle || route.query.orderName || '후원 게시글'
+      }
     }
   }
 
