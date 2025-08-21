@@ -136,9 +136,9 @@ function goDetail(id) {
 
             <div class="bottom-info">
               <span class="remaining">
-                마감까지 {{ item.remaining.toLocaleString() }}원
+                마감까지 {{ (item.remaining || 0).toLocaleString() }}원
               </span>
-              <span class="percent">{{ item.percentRaw }}%</span>
+              <span class="percent">{{ item.percentRaw ?? 0 }}%</span>
             </div>
           </div>
         </a-card>

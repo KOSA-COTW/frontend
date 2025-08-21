@@ -11,6 +11,9 @@ const postId = route.params.id
 const postStore = usePostStore()
 const auth = useAuthStore()
 
+// 게시글 단건 데이터
+const post = ref(null)
+
 // 수정용 form
 const form = reactive({
   title: '',
@@ -23,7 +26,6 @@ const form = reactive({
 
 const submitting = ref(false)
 const loading = ref(true)
-const canEdit = ref(true)
 
 // 금액 표시용
 const amountDisplay = computed(() =>
@@ -32,6 +34,25 @@ const amountDisplay = computed(() =>
 const formatAmount = e => {
   form.amount = e.target.value.replace(/[^\d]/g, '')
 }
+
+// 권한 체크
+const canEdit = computed(() => {
+  const authData = JSON.parse(localStorage.getItem('auth') || '{}')
+
+  const myEmail = authData.user?.username
+  const isAdmin = authData.user?.role === 'ADMIN'
+  const authorEmail = post.value?.authorEmail
+
+  // 디버깅용 로그
+  // console.log("[권한체크]", {
+  //   myEmail,
+  //   authorEmail,
+  //   isAdmin,
+  //   authData
+  // })
+
+  return isAdmin || (!!authorEmail && !!myEmail && authorEmail === myEmail)
+})
 
 // 기존 데이터 불러오기
 const loadPost = async () => {
@@ -43,19 +64,13 @@ const loadPost = async () => {
       router.replace('/posts')
       return
     }
+    post.value = data
+
     form.title = data.title
     form.category = data.category
     form.amount = data.amount
     form.content = data.content
     form.deadline = data.deadline // 프론트에서만 표시
-
-    // 권한 체크: 본인 글이거나 관리자만 통과
-    // 백엔드 응답에 authorEmail 같은 필드가 있다고 가정 (없으면 제거)
-    const authorEmail = data.authorEmail || data.author?.email
-    const myEmail = auth.user?.email
-    const isAdmin = auth.isAdmin === true
-
-    canEdit.value = isAdmin || (!!authorEmail && !!myEmail && authorEmail === myEmail)
 
     if (!canEdit.value) {
       Modal.warning({
@@ -65,7 +80,6 @@ const loadPost = async () => {
       })
     }
   } catch (err) {
-    // 401/403 등 서버에서 막힌 경우
     if (err?.response?.status === 403) {
       Modal.error({
         title: '권한 없음',
@@ -102,7 +116,6 @@ const onSubmit = async () => {
     message.success('글이 성공적으로 수정되었습니다!')
     router.push(`/posts/${postId}`)
   } catch (err) {
-    // ✅ 에러 케이스별 메시지
     if (err?.response?.status === 401) {
       Modal.warning({
         title: '로그인이 필요합니다',

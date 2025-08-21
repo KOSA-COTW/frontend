@@ -95,10 +95,9 @@ const categories = [
             />
             <div class="bottom-info">
               <span class="remaining">
-                마감까지
-                {{ (Number(item.target || 0) - Number(item.raised || 0)).toLocaleString() }}원
+                마감까지 {{ (item.remaining || 0).toLocaleString() }}원
               </span>
-              <span class="percent"> {{ item.percent }}% </span>
+              <span class="percent"> {{ item.percentRaw }}% </span>
             </div>
           </div>
         </a-card>

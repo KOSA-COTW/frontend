@@ -46,11 +46,16 @@ function addComment() {
 }
 // 작성자 or 관리자만 수정/삭제 가능
 const canManage = computed(() => {
-  const myEmail = auth.user?.email
-  const isAdmin = auth.isAdmin === true
+  const storedAuth = JSON.parse(localStorage.getItem('auth') || '{}')
+  const myEmail = storedAuth?.user?.username || null
+  const isAdmin = storedAuth?.user?.role === 'ADMIN'
   const authorEmail = post.value?.authorEmail || post.value?.author?.email
+
+  // console.log('[권한체크]', { myEmail, authorEmail, isAdmin, storedAuth })
+
   return !!(isAdmin || (myEmail && authorEmail && myEmail === authorEmail))
 })
+
 async function deletePost() {
   if (!auth.isLoggedIn) {
     Modal.warning({
@@ -199,7 +204,7 @@ function proceedToPayment() {
         <div class="progress-card">
           <div class="progress-header">
             <span>
-              마감까지 {{ post.remaining.toLocaleString() }}원
+              마감까지 {{ post.remaining }}원
             </span>
             <span class="percent">
               {{ post.percent }}%
@@ -211,14 +216,14 @@ function proceedToPayment() {
             :show-info="false"
           />
           <div class="current">
-            {{ post.currentAmount ? post.currentAmount.toLocaleString() + '원 모금' : '---' }}
+            {{ post.currentAmount ? post.currentAmount + '원 모금' : '---' }}
           </div>
           <div class="progress-info">
             <div>모금 시작일 <span>{{ post.createdAt }}</span></div>
-            <div>모금목표 <span>{{ post.amount.toLocaleString() }}원</span></div>
-            <div>후원잔액까지 <span>{{ post.remaining.toLocaleString() }}원</span></div>
+            <div>모금목표 <span>{{ post.amount }}원</span></div>
+            <div>후원잔액까지 <span>{{ post.remaining }}원</span></div>
             <div>총 참여인원 <span>{{ post.donorCount }}명</span></div>
-            <div v-if="post.overfunded > 0">초과모금 <span style="color: #00C851;">{{ post.overfunded.toLocaleString() }}원</span></div>
+            <div v-if="post.overfunded > 0">초과모금 <span style="color: #00C851;">{{ post.overfunded }}원</span></div>
             <div>마감까지 <span>{{ post.daysLeft }}일</span></div>
           </div>
           <a-button type="primary" class="donate-btn" :style="{background: mainColor, borderColor: mainColor}" @click="openDonationModal" :disabled="post.status === 'COMPLETED'">
@@ -299,7 +304,7 @@ function proceedToPayment() {
               class="quick-amount-btn"
               :class="{ active: donationAmount === amount }"
             >
-              {{ amount.toLocaleString() }}원
+              {{ amount }}원
             </button>
           </div>
 
@@ -317,7 +322,7 @@ function proceedToPayment() {
 
           <div class="selected-amount">
             <span>선택된 금액: </span>
-            <span class="amount-display">{{ donationAmount.toLocaleString() }}원</span>
+            <span class="amount-display">{{ donationAmount}}원</span>
           </div>
         </div>
 
@@ -330,7 +335,7 @@ function proceedToPayment() {
             :style="{background: mainColor, borderColor: mainColor}"
             @click="proceedToPayment"
           >
-            {{ donationAmount.toLocaleString() }}원 기부하기
+            {{ donationAmount }}원 기부하기
           </a-button>
         </div>
       </div>
