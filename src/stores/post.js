@@ -19,10 +19,10 @@ export const usePostStore = defineStore('post', () => {
 
   // 합계(전체/필터 반영)
   const totalPostAll = computed(() =>
-    posts.value.reduce((sum, p) => sum + (p.raised || 0), 0)
+    posts.value.reduce((sum, p) => sum + (p.currentAmount || 0), 0)
   )
   const totalPostFiltered = computed(() =>
-    filteredPosts.value.reduce((sum, p) => sum + (p.raised || 0), 0)
+    filteredPosts.value.reduce((sum, p) => sum + (p.currentAmount || 0), 0)
   )
 
   // 카테고리 설정 액션
