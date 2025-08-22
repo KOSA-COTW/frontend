@@ -36,8 +36,7 @@
           <a-select-option value="동물">동물</a-select-option>
           <a-select-option value="환경">환경</a-select-option>
           <a-select-option value="지구촌">지구촌</a-select-option>
-          <a-select-option value="학생">학생</a-select-option>
-          <a-select-option value="생활">생활</a-select-option>
+          <a-select-option value="사회">사회</a-select-option>
         </a-select>
         
         <a-button @click="toggleDateSort" class="sort-button">
@@ -48,7 +47,7 @@
 
     <a-table
       :columns="columns"
-      :data-source="sortedPosts"
+      :data-source="posts"
       :pagination="pagination"
       :loading="loading"
       row-key="id"
@@ -61,7 +60,7 @@
         </template>
         <template v-else-if="column.key === 'category'">
           <a-tag :color="getCategoryColor(record.category)">
-            {{ record.category }}
+            {{ getCategoryDisplayName(record.category) }}
           </a-tag>
         </template>
         <template v-else-if="column.key === 'title'">
@@ -79,14 +78,14 @@
               <div class="progress-text">
                 <span class="current-amount">{{ formatMoney(record.currentAmount) }}</span>
                 <span class="divider">/</span>
-                <span class="target-amount">{{ formatMoney(record.targetAmount) }}</span>
+                <span class="target-amount">{{ formatMoney(record.amount) }}</span>
                 <span class="percentage">({{ getAchievementRate(record) }}%)</span>
               </div>
             </div>
           </div>
         </template>
-        <template v-else-if="column.key === 'date'">
-          {{ formatDate(record.date) }}
+        <template v-else-if="column.key === 'createdAt'">
+          {{ formatDate(record.createdAt) }}
         </template>
       </template>
     </a-table>
@@ -97,6 +96,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import { message } from 'ant-design-vue'
+import axios from '@/utils/axios'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'PublicPostListView',
@@ -104,6 +105,7 @@ export default {
     PlusOutlined
   },
   setup() {
+    const router = useRouter()
     const loading = ref(false)
     const searchText = ref('')
     const selectedCategory = ref('')
@@ -144,140 +146,52 @@ export default {
       },
       {
         title: '글쓴이',
-        dataIndex: 'author',
-        key: 'author',
+        dataIndex: 'authorName',
+        key: 'authorName',
         width: 120,
         align: 'center'
       },
       {
         title: '날짜',
-        dataIndex: 'date',
-        key: 'date',
+        dataIndex: 'createdAt',
+        key: 'createdAt',
         width: 120,
         align: 'center'
       }
     ]
 
-    // 샘플 데이터 - 목표 금액과 현재 금액 추가
-    const posts = ref([
-      {
-        id: 1,
-        category: '아동',
-        title: '전라북도 전주시 새누리지역아동센터 아이들 28에게 따뜻한 간식을',
-        author: '김지원',
-        date: new Date('2024-01-15'),
-        targetAmount: 500000,
-        currentAmount: 345000
-      },
-      {
-        id: 2,
-        category: '장애인',
-        title: '서울시 중랑구 해오름지역아동센터 장애 아동들에게 안전한 교통비를',
-        author: '홍길동',
-        date: new Date('2024-01-14'),
-        targetAmount: 800000,
-        currentAmount: 650000
-      },
-      {
-        id: 3,
-        category: '어르신',
-        title: '부산시 사하구 사랑지역아동센터 어르신들께 건강 검진비를',
-        author: '김개발',
-        date: new Date('2024-01-13'),
-        targetAmount: 1200000,
-        currentAmount: 450000
-      },
-      {
-        id: 4,
-        category: '동물',
-        title: '대전시 서구 아람지역 내 유기동물 보호소에 사료와 의약품을',
-        author: '이코딩',
-        date: new Date('2024-01-12'),
-        targetAmount: 600000,
-        currentAmount: 600000
-      },
-      {
-        id: 5,
-        category: '환경',
-        title: '경기도 수원시 하늘지역 환경 정화 활동에 필요한 물품을',
-        author: '박프론트',
-        date: new Date('2024-01-11'),
-        targetAmount: 400000,
-        currentAmount: 120000
-      },
-      {
-        id: 6,
-        category: '지구촌',
-        title: '인천시 연수구 드림지역 아이들에게 지구촌 교육 지원을',
-        author: '최초보',
-        date: new Date('2024-01-10'),
-        targetAmount: 750000,
-        currentAmount: 520000
-      },
-      {
-        id: 7,
-        category: '학생',
-        title: 'KOSA 602호 학생들에게 간식을',
-        author: '정디자인',
-        date: new Date('2024-01-08'),
-        targetAmount: 200000,
-        currentAmount: 180000
-      },
-      {
-        id: 8,
-        category: '생활',
-        title: '대구시 달서구 대한교육문화원지역아동센터 아이들 28명에게',
-        author: '강모임',
-        date: new Date('2024-01-07'),
-        targetAmount: 900000,
-        currentAmount: 300000
-      },
-      {
-        id: 9,
-        category: '동물',
-        title: '강지냥이쉼터',
-        author: '윤백엔드',
-        date: new Date('2024-01-06'),
-        targetAmount: 1000000,
-        currentAmount: 850000
+    const posts = ref([])
+    const totalElements = ref(0)
+
+
+    const getCategoryDisplayName = (category) => {
+      const categoryMap = {
+        'CHILD': '아동',
+        'DISABLED': '장애인',
+        'SENIOR': '어르신',
+        'ANIMAL': '동물',
+        'ENVIRONMENT': '환경',
+        'GLOBAL': '지구촌',
+        'SOCIETY': '사회'
       }
-    ])
+      return categoryMap[category] || category
+    }
 
-    const filteredPosts = computed(() => {
-      let filtered = posts.value
-
-      // 카테고리 필터링
-      if (selectedCategory.value) {
-        filtered = filtered.filter(post => post.category === selectedCategory.value)
+    const getCategoryEnumValue = (displayName) => {
+      const enumMap = {
+        '아동': 'CHILD',
+        '장애인': 'DISABLED',
+        '어르신': 'SENIOR',
+        '동물': 'ANIMAL',
+        '환경': 'ENVIRONMENT',
+        '지구촌': 'GLOBAL',
+        '사회': 'SOCIETY'
       }
-
-      // 검색 필터링
-      if (searchText.value) {
-        const search = searchText.value.toLowerCase()
-        filtered = filtered.filter(post =>
-          post.title.toLowerCase().includes(search) ||
-          post.author.toLowerCase().includes(search)
-        )
-      }
-
-      return filtered
-    })
-
-    const sortedPosts = computed(() => {
-      const sorted = [...filteredPosts.value]
-      sorted.sort((a, b) => {
-        if (sortOrder.value === 'desc') {
-          return new Date(b.date) - new Date(a.date)
-        } else {
-          return new Date(a.date) - new Date(b.date)
-        }
-      })
-      
-      pagination.total = sorted.length
-      return sorted
-    })
+      return enumMap[displayName] || displayName
+    }
 
     const getCategoryColor = (category) => {
+      const displayName = getCategoryDisplayName(category)
       const colors = {
         '아동': '#00C851',
         '장애인': '#b6e6fb',
@@ -285,13 +199,13 @@ export default {
         '동물': '#ee9120',
         '환경': '#205dee',
         '지구촌': '#2db7f5',
-        '학생': '#fbb6b7',
-        '생활': '#e9b6fb',
+        '사회': '#fbb6b7'
       }
-      return colors[category] || '#00C851'
+      return colors[displayName] || '#00C851'
     }
 
-    const formatDate = (date) => {
+    const formatDate = (dateString) => {
+      const date = new Date(dateString)
       return date.toLocaleDateString('ko-KR', {
         year: 'numeric',
         month: '2-digit',
@@ -304,36 +218,88 @@ export default {
     }
 
     const getAchievementRate = (record) => {
-      const rate = Math.round((record.currentAmount / record.targetAmount) * 100)
+      const rate = Math.round((record.currentAmount / record.amount) * 100)
       return Math.min(rate, 100) // 100% 초과하지 않도록
+    }
+
+    const fetchPosts = async () => {
+      loading.value = true
+      try {
+        const params = {}
+        
+        // 기본값이 아닌 경우에만 파라미터 추가
+        if (pagination.current !== 1) {
+          params.page = pagination.current - 1
+        }
+        if (pagination.pageSize !== 10) {
+          params.limit = pagination.pageSize
+        }
+        if (sortOrder.value !== 'desc') {
+          params.sortOrder = sortOrder.value
+        }
+        if (selectedCategory.value) {
+          params.category = getCategoryEnumValue(selectedCategory.value)
+        }
+        if (searchText.value) {
+          params.search = searchText.value
+        }
+        
+        const response = await axios.get('/api/posts/public', { params })
+        
+        posts.value = response.content
+        pagination.total = response.totalElements
+        totalElements.value = response.totalElements
+      } catch (error) {
+        console.error('게시글 목록 조회 실패:', error)
+        message.error('게시글 목록을 불러오는데 실패했습니다.')
+      } finally {
+        loading.value = false
+      }
     }
 
     const handleSearch = (value) => {
       searchText.value = value
       pagination.current = 1
+      fetchPosts()
     }
 
     const handleCategoryChange = () => {
       pagination.current = 1
+      fetchPosts()
     }
 
     const handleTableChange = (pag) => {
       pagination.current = pag.current
       pagination.pageSize = pag.pageSize
+      fetchPosts()
     }
 
     const toggleDateSort = () => {
       sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
       pagination.current = 1
+      fetchPosts()
     }
 
     const handleWrite = () => {
       message.success('기부 프로젝트 등록 페이지로 이동')
     }
 
-    const handlePostClick = (post) => {
-      message.info(`"${post.title}" 프로젝트 상세 페이지로 이동`)
+    const handlePostClick = async (post) => {
+      try {
+        // 게시글 상세 정보 조회
+        const response = await axios.get(`/api/posts/${post.id}`)
+        
+        // 상세 페이지로 이동
+        router.push(`/posts/${post.id}`)
+      } catch (error) {
+        console.error('게시글 조회 실패:', error)
+        message.error('게시글을 불러오는데 실패했습니다.')
+      }
     }
+
+    onMounted(() => {
+      fetchPosts()
+    })
 
     return {
       loading,
@@ -342,7 +308,8 @@ export default {
       sortOrder,
       pagination,
       columns,
-      sortedPosts,
+      posts,
+      getCategoryDisplayName,
       getCategoryColor,
       formatDate,
       formatMoney,
@@ -352,7 +319,8 @@ export default {
       handleTableChange,
       toggleDateSort,
       handleWrite,
-      handlePostClick
+      handlePostClick,
+      fetchPosts
     }
   }
 }
