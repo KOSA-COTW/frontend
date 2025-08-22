@@ -1,439 +1,198 @@
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { usePostStore } from '@/stores/post'
+import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const postStore = usePostStore()
+const { posts } = storeToRefs(postStore)
+
+const activeTab = ref('ongoing')              // 'ongoing' | 'completed'
+const selectedCategory = ref('ALL')           // 카테고리 필터
+const searchQuery = ref('')                   // 검색어
+
+// 카테고리 목록 (필요 시 백엔드에서 내려주는 값으로 대체 가능)
+const categories = [
+  { value: 'ALL', label: '전체' },
+  { value: '아동', label: '아동' },
+  { value: '장애인', label: '장애인' },
+  { value: '어르신', label: '어르신' },
+  { value: '동물', label: '동물' },
+  { value: '환경', label: '환경' },
+  { value: '지구촌', label: '지구촌' },
+  { value: '사회', label: '사회' },
+]
+
+onMounted(() => {
+  postStore.fetchPostsAll()
+})
+
+// 1) 탭(상태)별 1차 분류
+const baseByTab = computed(() => {
+  return activeTab.value === 'completed'
+    ? posts.value.filter(p => p.status === 'COMPLETED')
+    : posts.value.filter(p => p.status !== 'COMPLETED')
+})
+
+// 2) 카테고리 필터
+const byCategory = computed(() => {
+  if (selectedCategory.value === 'ALL') return baseByTab.value
+  return baseByTab.value.filter(p => p.category === selectedCategory.value)
+})
+
+// 3) 검색어 필터 (제목/카테고리)
+const filteredPosts = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return byCategory.value
+  return byCategory.value.filter(p => {
+    const title = (p.title || '').toLowerCase()
+    const cat = (p.category || '').toLowerCase()
+    return title.includes(q) || cat.includes(q)
+  })
+})
+
+function goDetail(id) {
+  router.push({ name: 'postDetail', params: { id } })
+}
+</script>
+
 <template>
-  <div class="post-list-container">
-    <div class="header">
-      <h1 class="page-title">글 목록</h1>
-      <a-button type="primary" class="write-button" @click="handleWrite">
-        <PlusOutlined />
-        글쓰기
-      </a-button>
+  <div class="wrap">
+    <!-- 가운데 큰 탭 -->
+    <div class="tab-container">
+      <div
+        :class="['tab-item', activeTab === 'ongoing' ? 'active' : '']"
+        @click="activeTab = 'ongoing'"
+      >
+        모금중인 기부
+      </div>
+      <div
+        :class="['tab-item', activeTab === 'completed' ? 'active' : '']"
+        @click="activeTab = 'completed'"
+      >
+        모금완료된 기부
+      </div>
     </div>
 
-    <div class="search-section">
-      <a-input-search
-        v-model:value="searchText"
-        placeholder="제목 또는 내용으로 검색"
-        enter-button="검색"
+    <!-- 필터 바 -->
+    <div class="filter-bar">
+      <a-select
+        v-model:value="selectedCategory"
         size="large"
-        @search="handleSearch"
+        class="category-select"
+      >
+        <a-select-option
+          v-for="c in categories"
+          :key="c.value"
+          :value="c.value"
+        >
+          {{ c.label }}
+        </a-select-option>
+      </a-select>
+
+      <a-input
+        v-model:value="searchQuery"
+        size="large"
+        placeholder="검색어"
+        allow-clear
         class="search-input"
       />
     </div>
 
-    <div class="filter-section">
-      <a-select
-        v-model:value="selectedCategory"
-        placeholder="카테고리 선택"
-        style="width: 200px"
-        @change="handleCategoryChange"
-        allowClear
+    <!-- 카드 리스트 -->
+    <a-row :gutter="16" style="margin-top:24px;">
+      <a-col
+        v-for="item in filteredPosts"
+        :key="item.id"
+        :xs="24"
+        :sm="12"
+        :md="8"
+        :lg="6"
       >
-        <a-select-option value="">전체</a-select-option>
-        <a-select-option value="공지사항">공지사항</a-select-option>
-        <a-select-option value="자유게시판">자유게시판</a-select-option>
-        <a-select-option value="질문답변">질문답변</a-select-option>
-        <a-select-option value="정보공유">정보공유</a-select-option>
-      </a-select>
-    </div>
+        <a-card
+          hoverable
+          class="custom-card"
+          :class="activeTab === 'completed' ? 'completed' : ''"
+          :bordered="false"
+          @click="goDetail(item.id)"
+        >
+          <div class="image-wrap">
+            <img :src="item.image || 'https://placehold.co/300x180'" class="donation-image" />
+            <!-- 완료 배지 -->
+            <div v-if="activeTab === 'completed'" class="badge">모금완료</div>
+          </div>
 
-    <a-table
-      :columns="columns"
-      :data-source="filteredPosts"
-      :pagination="pagination"
-      :loading="loading"
-      row-key="id"
-      @change="handleTableChange"
-      class="post-table"
-    >
-      <template #bodyCell="{ column, record, index }">
-        <template v-if="column.key === 'index'">
-          {{ (pagination.current - 1) * pagination.pageSize + index + 1 }}
-        </template>
-        <template v-else-if="column.key === 'category'">
-          <a-tag :color="getCategoryColor(record.category)">
-            {{ record.category }}
-          </a-tag>
-        </template>
-        <template v-else-if="column.key === 'title'">
-          <a @click="handlePostClick(record)" class="post-title">
-            {{ record.title }}
-          </a>
-          <span v-if="record.commentCount > 0" class="comment-count">
-            [{{ record.commentCount }}]
-          </span>
-        </template>
-        <template v-else-if="column.key === 'date'">
-          {{ formatDate(record.date) }}
-        </template>
-      </template>
-    </a-table>
+          <div class="donation-text">
+            <div class="category">#{{ item.category }}</div>
+            <div class="title">{{ item.title }}</div>
+
+            <a-progress
+              :percent="item.percent"
+              :stroke-color="'#00C851'"
+              :show-info="false"
+              style="margin-top: 10px"
+            />
+
+            <div class="bottom-info">
+              <span class="remaining">
+                마감까지 {{ (item.remaining || 0).toLocaleString() }}원
+              </span>
+              <span class="percent">{{ item.percentRaw ?? 0 }}%</span>
+            </div>
+          </div>
+        </a-card>
+      </a-col>
+
+      <!-- 빈 상태 -->
+      <a-col v-if="filteredPosts.length === 0" :span="24" style="text-align:center; color:#999; padding:40px 0;">
+        해당 조건의 기부가 없습니다.
+      </a-col>
+    </a-row>
   </div>
 </template>
 
-<script>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
-import { message } from 'ant-design-vue'
-
-export default {
-  name: 'PostListPage',
-  components: {
-    PlusOutlined
-  },
-  setup() {
-    const loading = ref(false)
-    const searchText = ref('')
-    const selectedCategory = ref('')
-
-    const pagination = reactive({
-      current: 1,
-      pageSize: 10,
-      total: 0,
-      showSizeChanger: true,
-      showQuickJumper: true,
-      showTotal: (total, range) => `${range[0]}-${range[1]} / 총 ${total}개`
-    })
-
-    const columns = [
-      {
-        title: 'No',
-        key: 'index',
-        width: 60,
-        align: 'center'
-      },
-      {
-        title: '카테고리',
-        dataIndex: 'category',
-        key: 'category',
-        width: 120,
-        align: 'center'
-      },
-      {
-        title: '제목',
-        dataIndex: 'title',
-        key: 'title',
-        ellipsis: true
-      },
-      {
-        title: '글쓴이',
-        dataIndex: 'author',
-        key: 'author',
-        width: 120,
-        align: 'center'
-      },
-      {
-        title: '날짜',
-        dataIndex: 'date',
-        key: 'date',
-        width: 120,
-        align: 'center'
-      }
-    ]
-
-    // 샘플 데이터
-    const posts = ref([
-      {
-        id: 1,
-        category: '아동',
-        title: '전라북도 전주시 새누리지역아동센터 아이들 28에게 따뜻한 간식을',
-        author: '관리자',
-        date: new Date('2024-01-15'),
-        commentCount: 3
-      },
-      {
-        id: 2,
-        category: '장애인',
-        title: '서울시 중랑구 해오름지역아동센터 장애 아동들에게 안전한 교통비를',
-        author: '홍길동',
-        date: new Date('2024-01-14'),
-        commentCount: 12
-      },
-      {
-        id: 3,
-        category: '어르신',
-        title: '부산시 사하구 사랑지역아동센터 어르신들께 건강 검진비를',
-        author: '김개발',
-        date: new Date('2024-01-13'),
-        commentCount: 5
-      },
-      {
-        id: 4,
-        category: '동물',
-        title: '대전시 서구 아람지역 내 유기동물 보호소에 사료와 의약품을\n',
-        author: '이코딩',
-        date: new Date('2024-01-12'),
-        commentCount: 8
-      },
-      {
-        id: 5,
-        category: '환경',
-        title: '경기도 수원시 하늘지역 환경 정화 활동에 필요한 물품을',
-        author: '박프론트',
-        date: new Date('2024-01-11'),
-        commentCount: 15
-      },
-      {
-        id: 6,
-        category: '지구촌',
-        title: '인천시 연수구 드림지역 아이들에게 지구촌 교육 지원을',
-        author: '최초보',
-        date: new Date('2024-01-10'),
-        commentCount: 7
-      },
-      {
-        id: 7,
-        category: '공지사항',
-        title: '커뮤니티 이용 규칙 안내',
-        author: '관리자',
-        date: new Date('2024-01-09'),
-        commentCount: 2
-      },
-      {
-        id: 8,
-        category: '학생',
-        title: 'KOSA 602호 학생들에게 간식을',
-        author: '정디자인',
-        date: new Date('2024-01-08'),
-        commentCount: 11
-      },
-      {
-        id: 9,
-        category: '생활',
-        title: '대구시 달서구 대한교육문화원지역아동센터 아이들 28명에게',
-        author: '강모임',
-        date: new Date('2024-01-07'),
-        commentCount: 9
-      },
-      {
-        id: 10,
-        category: '동물',
-        title: '강지냥이쉼터',
-        author: '윤백엔드',
-        date: new Date('2024-01-06'),
-        commentCount: 13
-      }
-    ])
-
-    const filteredPosts = computed(() => {
-      let filtered = posts.value
-
-      // 카테고리 필터링
-      if (selectedCategory.value) {
-        filtered = filtered.filter(post => post.category === selectedCategory.value)
-      }
-
-      // 검색 필터링
-      if (searchText.value) {
-        const search = searchText.value.toLowerCase()
-        filtered = filtered.filter(post =>
-          post.title.toLowerCase().includes(search) ||
-          post.author.toLowerCase().includes(search)
-        )
-      }
-
-      pagination.total = filtered.length
-      return filtered
-    })
-
-    const getCategoryColor = (category) => {
-      const colors = {
-        '공지사항': '#f50',
-        '아동': '#00C851',
-        '장애인': '#b6e6fb',
-        '어르신': '#bada55',
-        '동물': '#ee9120',
-        '환경': '#205dee',
-        '지구촌': '#2db7f5',
-        '학생': '#fbb6b7',
-        '생활': '#e9b6fb',
-      }
-      return colors[category] || '#00C851'
-    }
-
-    const formatDate = (date) => {
-      return date.toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      })
-    }
-
-    const handleSearch = (value) => {
-      searchText.value = value
-      pagination.current = 1
-    }
-
-    const handleCategoryChange = () => {
-      pagination.current = 1
-    }
-
-    const handleTableChange = (pag) => {
-      pagination.current = pag.current
-      pagination.pageSize = pag.pageSize
-    }
-
-    const handleWrite = () => {
-      message.success('글쓰기 페이지로 이동')
-    }
-
-    const handlePostClick = (post) => {
-      message.info(`"${post.title}" 게시글 보기`)
-    }
-
-    onMounted(() => {
-      pagination.total = posts.value.length
-    })
-
-    return {
-      loading,
-      searchText,
-      selectedCategory,
-      pagination,
-      columns,
-      filteredPosts,
-      getCategoryColor,
-      formatDate,
-      handleSearch,
-      handleCategoryChange,
-      handleTableChange,
-      handleWrite,
-      handlePostClick
-    }
-  }
-}
-</script>
-
 <style scoped>
-.post-list-container {
-  padding: 24px;
-  background: #fff;
-  min-height: 100vh;
-}
+.wrap { max-width:1100px; margin:24px auto; padding:0 12px; }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #f0f0f0;
+/* 탭 */
+.tab-container {
+  display: flex; justify-content: center; gap: 40px;
+  font-size: 1.25rem; font-weight: 700; margin: 10px 0 14px;
 }
-
-.page-title {
-  font-size: 28px;
-  font-weight: bold;
-  color: #262626;
-  margin: 0;
+.tab-item {
+  cursor: pointer; padding: 10px 2px; border-bottom: 3px solid transparent;
+  transition: all .25s ease;
 }
+.tab-item.active { color: #00C851; border-bottom-color: #00C851; }
 
-.write-button {
-  background-color: #00C851;
-  border-color: #00C851;
-  font-weight: 500;
-  height: 40px;
-  padding: 0 20px;
+/* 필터 바 */
+.filter-bar {
+  margin-top: 6px;
+  display: flex; justify-content: flex-end; gap: 12px; flex-wrap: wrap;
 }
+.category-select { width: 220px; }
+.search-input   { width: 260px; }
 
-.write-button:hover,
-.write-button:focus {
-  background-color: #00A844;
-  border-color: #00A844;
+/* 카드 */
+.custom-card { padding:0; overflow:hidden; border-radius:12px; box-shadow:0 6px 12px rgba(0,0,0,.15); margin-bottom:24px; position:relative; }
+.image-wrap { position: relative; }
+.donation-image { width:100%; height:180px; object-fit:cover; border-top-left-radius:12px; border-top-right-radius:12px; }
+.donation-text { padding:12px 16px; background:#fff; }
+.category { color:#00C851; font-weight:700; margin-bottom:4px; font-size:.9rem; }
+.title { font-size:1rem; font-weight:600; margin-bottom:8px; }
+.bottom-info { display:flex; justify-content:space-between; margin-top:4px; color:#777; font-size:.85rem; }
+.percent { color:#00C851; font-weight:700; }
+
+/* 완료 상태 오버레이 & 배지 */
+.custom-card.completed .donation-image { filter: grayscale(1); }
+.custom-card.completed::after {
+  content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.15); border-radius: 12px;
 }
-
-.search-section {
-  margin-bottom: 16px;
-}
-
-.search-input {
-  max-width: 400px;
-}
-
-.search-input .ant-btn-primary {
-  background-color: #00C851;
-  border-color: #00C851;
-}
-
-.search-input .ant-btn-primary:hover,
-.search-input .ant-btn-primary:focus {
-  background-color: #00A844;
-  border-color: #00A844;
-}
-
-.filter-section {
-  margin-bottom: 20px;
-}
-
-.post-table {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.post-table .ant-table-thead > tr > th {
-  background-color: #fafafa;
-  font-weight: 600;
-  color: #262626;
-  border-bottom: 2px solid #00C851;
-}
-
-.post-table .ant-table-tbody > tr:hover > td {
-  background-color: #f6ffed;
-}
-
-.post-title {
-  color: #262626;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.post-title:hover {
-  color: #00C851;
-  text-decoration: underline;
-}
-
-.comment-count {
-  color: #00C851;
-  font-weight: 500;
-  margin-left: 8px;
-}
-
-.ant-pagination {
-  margin-top: 24px;
-  text-align: center;
-}
-
-.ant-pagination .ant-pagination-item-active {
-  border-color: #00C851;
-}
-
-.ant-pagination .ant-pagination-item-active a {
-  color: #00C851;
-}
-
-.ant-pagination .ant-pagination-item:hover {
-  border-color: #00C851;
-}
-
-.ant-pagination .ant-pagination-item:hover a {
-  color: #00C851;
-}
-
-.ant-pagination .ant-pagination-prev:hover .ant-pagination-item-link,
-.ant-pagination .ant-pagination-next:hover .ant-pagination-item-link {
-  color: #00C851;
-  border-color: #00C851;
-}
-
-.ant-select-focused .ant-select-selector,
-.ant-select-selector:focus,
-.ant-select-selector:active,
-.ant-select-open .ant-select-selector {
-  border-color: #00C851;
-  box-shadow: 0 0 0 2px rgba(0, 200, 81, 0.2);
-}
-
-.ant-input:focus,
-.ant-input-focused {
-  border-color: #00C851;
-  box-shadow: 0 0 0 2px rgba(0, 200, 81, 0.2);
+.badge {
+  position: absolute; left: 16px; top: 16px;
+  background: rgba(0,0,0,.65); color: #fff;
+  padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: .95rem;
+  display: inline-flex; align-items: center; gap: 6px;
 }
 </style>

@@ -5,12 +5,14 @@
       <a-col :xs="24" :sm="6" :md="5" :lg="5" :xl="4">
         <div class="sidebar">
           <ul>
+
             <li
               v-for="item in menuItems"
               :key="item"
               :class="{ active: selectedMenu === item }"
               @click="selectedMenu = item"
             >
+
               {{ item }}
             </li>
           </ul>
@@ -19,6 +21,7 @@
 
       <!-- 우측 본문 -->
       <a-col :xs="24" :sm="18" :md="17" :lg="15" :xl="14">
+
         <!-- 상단 카드: 내 정보 -->
         <a-card class="top-card" v-if="selectedMenu === '내 정보'">
           <a-skeleton :loading="loading" avatar active>
@@ -99,6 +102,7 @@
                         readonly
                       />
                     </div>
+
                   </div>
                 </div>
               </div>
@@ -137,6 +141,7 @@
         <a-card v-if="selectedMenu === '기부금영수증'">
           <p>연말정산용 기부금 영수증을 발급할 수 있어요.</p>
         </a-card>
+
       </a-col>
     </a-row>
 
@@ -431,6 +436,26 @@ onMounted(information)
 .mini-desc { margin-bottom: 8px; }
 .mt8 { margin-top: 8px; }
 .danger-note { margin-top: 8px; font-size: 12px; color: #c0342b; }
+
+/* PaymentHistoryView 통합 스타일 */
+.payment-history-section {
+  margin-top: 0;
+}
+
+.payment-history-section :deep(.payment-history) {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.payment-history-section :deep(.payment-history-header) {
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.other-menu-section {
+  margin-top: 0;
+}
 
 @media (max-width: 768px) {
   .top-section { grid-template-columns: 1fr; justify-items: center; text-align: center; }

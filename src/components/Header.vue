@@ -7,8 +7,8 @@
         <a-menu-item key="home">
           <router-link to="/">홈</router-link>
         </a-menu-item>
-        <a-menu-item key="donate">
-          <router-link to="/donations">기부하기</router-link>
+        <a-menu-item key="posts">
+          <router-link to="/posts">기부하기</router-link>
         </a-menu-item>
 
         <template v-if="!isLoggedIn">
@@ -21,12 +21,26 @@
         </template>
 
         <template v-else>
-          <a-menu-item key="mypage">
-            <router-link to="/mypage">마이페이지</router-link>
+          <!-- 로그인한 누구나 기부글 쓰기 가능 -->
+          <a-menu-item key="create-post">
+            <router-link to="/posts/create">기부글 쓰기</router-link>
           </a-menu-item>
-          <a-menu-item key="logout">
-            <a @click="logout">로그아웃</a>
-          </a-menu-item>
+          <template v-if="isAdmin">
+            <a-menu-item key="admin">
+              <router-link to="/admin">관리자 페이지</router-link>
+            </a-menu-item>
+            <a-menu-item key="logout">
+              <a @click="logout">로그아웃</a>
+            </a-menu-item>
+          </template>
+          <template v-else>
+            <a-menu-item key="mypage">
+              <router-link to="/mypage">마이페이지</router-link>
+            </a-menu-item>
+            <a-menu-item key="logout">
+              <a @click="logout">로그아웃</a>
+            </a-menu-item>
+          </template>
         </template>
       </a-menu>
     </div>
@@ -38,6 +52,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
+import { message } from 'ant-design-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -45,22 +60,24 @@ const route = useRoute()
 const selectedKey = ref('home')
 
 const auth = useAuthStore()
-const { isLoggedIn } = storeToRefs(auth) // 반응형 참조
+const { isLoggedIn, isAdmin, isOrganization } = storeToRefs(auth) // 반응형 참조
 
 
 // 라우팅에 따라 메뉴 선택
 watch(() => route.path, (path) => {
-  if (path.startsWith('/donations')) selectedKey.value = 'donate'
+  if (path.startsWith('/posts/create')) selectedKey.value = 'create-post'
+  else if (path.startsWith('/posts')) selectedKey.value = 'posts'
   else if (path.startsWith('/login')) selectedKey.value = 'login'
   else if (path.startsWith('/signup')) selectedKey.value = 'signup'
   else if (path.startsWith('/mypage')) selectedKey.value = 'mypage'
+  else if (path.startsWith('/admin')) selectedKey.value = 'admin'
   else selectedKey.value = 'home'
 }, { immediate: true })
 
 // 로그아웃
 const logout = () => {
-
   auth.logout()
+  message.success('로그아웃되었습니다.')
   router.push('/')
 }
 
