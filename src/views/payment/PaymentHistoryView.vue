@@ -162,7 +162,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePaymentStore } from '@/stores/payment'
 import { message } from 'ant-design-vue'
@@ -226,7 +226,6 @@ const stats = computed(() => {
 
 // 메서드
 const fetchPayments = async () => {
-  console.log('[PaymentHistoryView] Starting fetchPayments...')
   loading.value = true
   error.value = null
   
@@ -239,43 +238,24 @@ const fetchPayments = async () => {
       startDate: filters.dateRange?.[0]?.format('YYYY-MM-DD'),
       endDate: filters.dateRange?.[1]?.format('YYYY-MM-DD')
     }
-
-    console.log('[PaymentHistoryView] Request params:', params)
-    console.log('[PaymentHistoryView] paymentStore:', paymentStore)
-    console.log('[PaymentHistoryView] paymentStore.getMyPayments:', paymentStore.getMyPayments)
-    
-    if (!paymentStore.getMyPayments) {
-      console.error('[PaymentHistoryView] getMyPayments method not found in store!')
-      throw new Error('getMyPayments method not available')
-    }
     
     const response = await paymentStore.getMyPayments(params)
-    console.log('[PaymentHistoryView] API response:', response)
-    console.log('[PaymentHistoryView] Response type:', typeof response)
-    console.log('[PaymentHistoryView] Is array?', Array.isArray(response))
     
     // 응답 구조에 따른 안전한 데이터 처리
     if (Array.isArray(response)) {
-      // 직접 배열인 경우
       payments.value = response
       pagination.total = response.length
     } else if (response && typeof response === 'object') {
-      // 객체인 경우 여러 가능성 체크
       if (response.content && Array.isArray(response.content)) {
-        // Spring Boot Page 구조
         payments.value = response.content
         pagination.total = response.totalElements || response.content.length
       } else if (response.data && Array.isArray(response.data)) {
-        // data 속성에 있는 경우
         payments.value = response.data
         pagination.total = response.total || response.data.length
       } else if (response.payments && Array.isArray(response.payments)) {
-        // payments 속성에 있는 경우
         payments.value = response.payments
         pagination.total = response.total || response.payments.length
       } else {
-        // 알 수 없는 구조인 경우
-        console.warn('Unknown response structure:', response)
         payments.value = []
         pagination.total = 0
       }
@@ -283,10 +263,7 @@ const fetchPayments = async () => {
       payments.value = []
       pagination.total = 0
     }
-    
-    console.log('Payments loaded:', payments.value.length, 'Total:', pagination.total)
   } catch (err) {
-    console.error('Failed to fetch payments:', err)
     error.value = err.response?.data?.message || '기부 내역을 불러오는데 실패했습니다.'
   } finally {
     loading.value = false
@@ -341,14 +318,13 @@ const onPageSizeChange = (current, size) => {
 
 const cancelPayment = async (paymentKey) => {
   try {
-    const response = await axios.post('/api/payments/cancel', {
+    await axios.post('/api/payments/cancel', {
       paymentKey: paymentKey
     })
     
     message.success('결제가 취소되었습니다.')
-    fetchPayments() // 목록 새로고침
+    fetchPayments()
   } catch (error) {
-    console.error('결제 취소 실패:', error)
     message.error(error.response?.data?.message || '결제 취소에 실패했습니다.')
   }
 }
@@ -449,7 +425,7 @@ onMounted(() => {
 
 .payment-item {
   padding: 24px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .payment-item:last-child {
@@ -544,7 +520,7 @@ onMounted(() => {
 
 .payment-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 16px;
   padding-top: 12px;
   border-top: 1px solid #f3f4f6;

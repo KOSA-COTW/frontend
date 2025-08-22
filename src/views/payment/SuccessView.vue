@@ -27,7 +27,7 @@
         </div>
         <div class="detail-row">
           <span class="label">후원 게시글</span>
-          <span class="value">{{ paymentInfo.orderName }}</span>
+          <span class="value">{{ paymentInfo.postTitle }}</span>
         </div>
         <div class="detail-row">
           <span class="label">후원 금액</span>
@@ -57,7 +57,6 @@ const router = useRouter()
 const paymentStore = usePaymentStore()
 
 const paymentInfo = ref(null)
-const loading = ref(true)
 
 const getPaymentMethodText = (type) => {
   const typeMap = {
@@ -78,29 +77,44 @@ const goToMyPayments = () => {
 
 onMounted(async () => {
   const orderId = route.query.orderId
+  const paymentKey = route.query.paymentKey
 
   if (orderId) {
     try {
-      // 결제 내역을 다시 조회해서 최신 정보 표시
-      await paymentStore.fetchMyPayments()
-      const payments = paymentStore.payments
-      paymentInfo.value = payments.find((p) => p.orderId === orderId)
+      const response = await paymentStore.getMyPayments()
+      
+      let payments = []
+      if (Array.isArray(response)) {
+        payments = response
+      } else if (response && response.content) {
+        payments = response.content
+      } else if (response && response.data) {
+        payments = response.data
+      }
+      
+      paymentInfo.value = payments.find((p) => 
+        p.orderId === orderId || p.paymentKey === paymentKey
+      )
 
       if (!paymentInfo.value) {
-        // 임시로 쿼리 파라미터 정보 사용
         paymentInfo.value = {
           orderId: orderId,
-          orderName: '후원 완료',
+          orderName: route.query.orderName || '후원 완료',
           amount: parseInt(route.query.amount) || 0,
-          type: 'NORMAL',
+          type: route.query.type || 'NORMAL',
+          postTitle: route.query.postTitle || route.query.orderName || '후원 게시글'
         }
       }
     } catch (error) {
-      console.error('Failed to fetch payment info:', error)
+      paymentInfo.value = {
+        orderId: orderId,
+        orderName: route.query.orderName || '후원 완료', 
+        amount: parseInt(route.query.amount) || 0,
+        type: route.query.type || 'NORMAL',
+        postTitle: route.query.postTitle || route.query.orderName || '후원 게시글'
+      }
     }
   }
-
-  loading.value = false
 })
 </script>
 
