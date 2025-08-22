@@ -120,7 +120,7 @@ const categories = [
         </div>
       </a-col>
       <a-col :span="12">
-        <div class="event-banner dark-banner">
+        <div class="event-banner dark-banner" @click="router.push('/notices')" style="cursor: pointer">
           <div>
             <div class="banner-title">공지사항</div>
             <div class="banner-subtitle">커뮤니티 이용 규칙 안내 &gt;</div>
