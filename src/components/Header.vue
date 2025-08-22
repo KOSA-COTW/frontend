@@ -11,6 +11,10 @@
           <router-link to="/posts">기부하기</router-link>
         </a-menu-item>
 
+        <a-menu-item key="notices">
+          <router-link to="/notices">공지사항</router-link>
+        </a-menu-item>
+
         <template v-if="!isLoggedIn">
           <a-menu-item key="login">
             <router-link to="/login">로그인</router-link>
@@ -71,6 +75,7 @@ watch(() => route.path, (path) => {
   else if (path.startsWith('/signup')) selectedKey.value = 'signup'
   else if (path.startsWith('/mypage')) selectedKey.value = 'mypage'
   else if (path.startsWith('/admin')) selectedKey.value = 'admin'
+  else if (path.startsWith('/notices')) selectedKey.value = 'notices'
   else selectedKey.value = 'home'
 }, { immediate: true })
 
