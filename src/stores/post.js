@@ -102,7 +102,15 @@ export const usePostStore = defineStore('post', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await postAPI.createPost(postData)
+      const imageUrls = []
+      for (const f of files) {
+        const url = await postAPI.uploadImage(f)
+        imageUrls.push(url)
+      }
+
+      const payload = { ...postData, imageUrls }
+      const response = await postAPI.createPost(payload)
+      
       // 생성 후 관련 목록 갱신
       await fetchMyPosts()
       await fetchPostsHome()
