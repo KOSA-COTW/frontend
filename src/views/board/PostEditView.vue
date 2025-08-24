@@ -4,6 +4,7 @@ import { message, Modal } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePostStore } from '@/stores/post'
 import { useAuthStore } from '@/stores/auth'
+import { postAPI } from '@/utils/post'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,18 +22,50 @@ const form = reactive({
   amount: '',
   content: '',
   deadline: null, // 지금은 보여주기만
-  agreeTerms: true
+  agreeTerms: true,
 })
 
+// 이미지 관련 상태
+const previewImages = ref([]) // { file?, url, name }
+const fileInput = ref(null)
+// X 버튼 누르면 배열에서만 삭제
+const removeImage = (idx) => {
+  previewImages.value.splice(idx, 1)
+}
 const submitting = ref(false)
 const loading = ref(true)
 
 // 금액 표시용
-const amountDisplay = computed(() =>
-  form.amount ? Number(form.amount).toLocaleString() : '0'
-)
-const formatAmount = e => {
+const amountDisplay = computed(() => (form.amount ? Number(form.amount).toLocaleString() : '0'))
+const formatAmount = (e) => {
   form.amount = e.target.value.replace(/[^\d]/g, '')
+}
+// 파일 input 열기
+const triggerFileInput = () => fileInput.value?.click()
+
+// 새 파일 선택 시
+const handleFileSelect = (e) => {
+  const files = Array.from(e.target.files || [])
+  if (previewImages.value.length + files.length > 5) {
+    message.warning('최대 5개의 이미지만 업로드할 수 있습니다.')
+    return
+  }
+  files.forEach((file) => {
+    if (file.size > 10 * 1024 * 1024) {
+      message.error(`${file.name}은 10MB를 초과합니다.`)
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      previewImages.value.push({
+        file,
+        url: ev.target.result,
+        name: file.name,
+      })
+    }
+    reader.readAsDataURL(file)
+  })
+  e.target.value = ''
 }
 
 // 권한 체크
@@ -70,7 +103,14 @@ const loadPost = async () => {
     form.category = data.category
     form.amount = data.amount
     form.content = data.content
-    form.deadline = data.deadline // 프론트에서만 표시
+    form.deadline = data.deadline
+
+    if (data.imageUrls?.length) {
+      previewImages.value = data.imageUrls.map((url, idx) => ({
+        url,
+        name: `image-${idx}`,
+      }))
+    }
 
     if (!canEdit.value) {
       Modal.warning({
@@ -92,7 +132,9 @@ const loadPost = async () => {
     } else if (err?.code === 'ERR_NETWORK') {
       message.error('서버와 연결할 수 없습니다. 네트워크 상태를 확인해주세요.')
     } else {
-      message.error(err?.response?.data?.message || '게시글 정보를 불러오는 중 오류가 발생했습니다.')
+      message.error(
+        err?.response?.data?.message || '게시글 정보를 불러오는 중 오류가 발생했습니다.',
+      )
     }
   } finally {
     loading.value = false
@@ -103,14 +145,29 @@ onMounted(loadPost)
 // 수정 제출
 const onSubmit = async () => {
   if (!canEdit.value) return
+  if (previewImages.value.length === 0) {
+    message.error('최소 1개 이상의 이미지를 등록해야 합니다.')
+    return
+  }
   submitting.value = true
   try {
+    // 1. 새 파일들은 업로드, 기존 URL은 그대로 유지
+    const imageUrls = []
+    for (const img of previewImages.value) {
+      if (img.file) {
+        const url = await postAPI.uploadImage(img.file)
+        imageUrls.push(url)
+      } else {
+        imageUrls.push(img.url) // 기존 url 그대로
+      }
+    }
     const payload = {
       title: form.title,
       category: form.category,
       amount: Number(form.amount),
-      content: form.content
-      // deadline, imageUrls 제외
+      content: form.content,
+      imageUrls,
+      // deadline 제외
     }
     await postStore.updatePost(postId, payload)
     message.success('글이 성공적으로 수정되었습니다!')
@@ -148,7 +205,7 @@ const categories = [
   { value: 'ANIMAL', label: '동물' },
   { value: 'ENVIRONMENT', label: '환경' },
   { value: 'GLOBAL', label: '지구촌' },
-  { value: 'SOCIETY', label: '사회' }
+  { value: 'SOCIETY', label: '사회' },
 ]
 </script>
 
@@ -170,11 +227,7 @@ const categories = [
           <a-col :xs="24" :md="12">
             <a-form-item label="카테고리" name="category" required>
               <a-select v-model:value="form.category" size="large">
-                <a-select-option
-                  v-for="c in categories"
-                  :key="c.value"
-                  :value="c.value"
-                >
+                <a-select-option v-for="c in categories" :key="c.value" :value="c.value">
                   {{ c.label }}
                 </a-select-option>
               </a-select>
@@ -193,7 +246,7 @@ const categories = [
                 />
                 <span class="currency-suffix">원</span>
               </a-input-group>
-              <div style="margin-top:6px;color:#888;">표시: {{ amountDisplay }}원</div>
+              <div style="margin-top: 6px; color: #888">표시: {{ amountDisplay }}원</div>
             </a-form-item>
           </a-col>
         </a-row>
@@ -205,23 +258,36 @@ const categories = [
 
         <!-- 내용 -->
         <a-form-item label="내용" name="content" required>
-          <a-textarea
-            v-model:value="form.content"
-            :auto-size="{ minRows: 10, maxRows: 20 }"
+          <a-textarea v-model:value="form.content" :auto-size="{ minRows: 10, maxRows: 20 }" />
+          <div class="character-count">{{ form.content.length }} / 2000자</div>
+        </a-form-item>
+
+        <!-- 이미지 업로드 -->
+        <a-form-item label="이미지 (최대 5개)">
+          <div class="image-upload-area" @click="triggerFileInput">
+            <p>📷 이미지 업로드</p>
+            <p class="upload-hint">최대 5개, 각 파일 10MB 이하</p>
+          </div>
+          <input
+            ref="fileInput"
+            type="file"
+            multiple
+            accept="image/*"
+            style="display: none"
+            @change="handleFileSelect"
           />
-          <div class="character-count">
-            {{ form.content.length }} / 2000자
+          <!-- 이미지 미리보기 -->
+          <div v-if="previewImages.length > 0" class="preview-images">
+            <div v-for="(image, index) in previewImages" :key="index" class="preview-image">
+              <img :src="image.url || image" :alt="'image-' + index" />
+              <button type="button" class="remove-image" @click="removeImage(index)">×</button>
+            </div>
           </div>
         </a-form-item>
 
         <!-- 버튼 -->
         <div class="action-buttons">
-          <a-button
-            type="primary"
-            size="large"
-            @click="onSubmit"
-            :loading="submitting"
-          >
+          <a-button type="primary" size="large" @click="onSubmit" :loading="submitting">
             ✏️ 글 수정하기
           </a-button>
         </div>
@@ -231,11 +297,83 @@ const categories = [
 </template>
 
 <style scoped>
-.editor-container { max-width: 900px; margin: 0 auto; padding: 24px; }
-.header { text-align: center; margin-bottom: 32px; padding: 24px 0; border-bottom: 2px solid #f0f0f0; }
-.header h1 { color: #00C851; font-size: 28px; margin: 0; font-weight: 600; }
-.form-section { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 32px; }
-.character-count { text-align: right; margin-top: 8px; color: #999; font-size: 12px; }
-.currency-suffix { background: #f5f5f5; border: 1px solid #d9d9d9; border-left: none; padding: 4px 11px; color: #666; }
-.action-buttons { display: flex; justify-content: flex-end; margin-top: 32px; gap: 16px; }
+.editor-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+  padding: 24px 0;
+  border-bottom: 2px solid #f0f0f0;
+}
+.header h1 {
+  color: #00c851;
+  font-size: 28px;
+  margin: 0;
+  font-weight: 600;
+}
+.form-section {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 32px;
+}
+.character-count {
+  text-align: right;
+  margin-top: 8px;
+  color: #999;
+  font-size: 12px;
+}
+.currency-suffix {
+  background: #f5f5f5;
+  border: 1px solid #d9d9d9;
+  border-left: none;
+  padding: 4px 11px;
+  color: #666;
+}
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 32px;
+  gap: 16px;
+}
+.preview-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.preview-image {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #d9d9d9;
+}
+
+.preview-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-image {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
 </style>

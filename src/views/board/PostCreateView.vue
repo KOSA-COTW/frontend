@@ -1,8 +1,9 @@
 <script>
 import { reactive, ref, computed } from 'vue'
 import { message, Modal } from 'ant-design-vue'
-import axios from 'axios'
+import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
+import { postAPI } from '@/utils/post'
 
 export default {
   name: 'DonationEditor',
@@ -20,7 +21,7 @@ export default {
     const previewModal = ref(false)
     const submitting = ref(false)
     const fileInput = ref(null)
-
+    const router = useRouter()
     // 표시용 포맷
     const amountDisplay = computed(() =>
       form.amount ? Number(form.amount).toLocaleString() : '0'
@@ -92,6 +93,10 @@ export default {
         message.error('필수 항목을 모두 입력해주세요.')
         return false
       }
+      if (previewImages.value.length === 0) {
+        message.error('최소 1개 이상의 이미지를 등록해야 합니다.')
+        return false
+      }
       if (!form.agreeTerms) {
         message.error('이용약관에 동의해주세요.')
         return false
@@ -100,39 +105,40 @@ export default {
     }
 
     const onSubmit = async () => {
-      if (!validateForm()) return
-      submitting.value = true
-      try {
-        const imageUrls =
-          previewImages.value.length > 0
-            ? previewImages.value.map(i => i.url) // 임시: data URL 그대로
-            : ['https://placehold.co/600x400']     // 기본 이미지
-
-        const payload = {
-          title: form.title,
-          category: form.category,
-          amount: Number(form.amount),
-          content: form.content,
-          deadline: dayjs(form.deadline).format('YYYY-MM-DD'),
-          imageUrls
-        }
-
-        const auth = localStorage.getItem('auth')
-       const accessToken = auth ? JSON.parse(auth).accessToken : null
-        const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/posts`, payload, {
-          headers: { access: accessToken } // 서버 JwtFilter가 'access' 헤더를 읽음
-        })
-
-        message.success('글이 성공적으로 등록되었습니다!')
-        // 필요하면 라우팅: this.$router.push(`/posts/${res.data}`)
-        console.log('Created Post ID:', res.data)
-      } catch (err) {
-        console.error(err)
-        message.error('등록 중 오류가 발생했습니다.')
-      } finally {
-        submitting.value = false
-      }
+  if (!validateForm()) return
+  submitting.value = true
+  try {
+    // 1. 이미지 업로드 (있을 경우)
+    const imageUrls = []
+    for (const img of previewImages.value) {
+      const url = await postAPI.uploadImage(img.file)  // S3 업로드
+      imageUrls.push(url)
     }
+
+    // 2. 게시글 생성 payload
+    const payload = {
+      title: form.title,
+      category: form.category,
+      amount: Number(form.amount),
+      content: form.content,
+      deadline: dayjs(form.deadline).format('YYYY-MM-DD'),
+      imageUrls: imageUrls
+    }
+
+    // 3. 게시글 생성 요청
+    const res = await postAPI.createPost(payload)
+
+    message.success('글이 성공적으로 등록되었습니다!').then(() => {
+      router.push('/')
+    })
+  } catch (err) {
+    console.error("❌ Post Create Error:", err)
+    message.error('등록 중 오류가 발생했습니다.')
+  } finally {
+    submitting.value = false
+  }
+}
+
 
     // 카테고리 표시 텍스트
     const categories = [

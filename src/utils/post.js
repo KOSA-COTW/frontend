@@ -166,4 +166,20 @@ export const postAPI = {
       throw error
     }
   },
+
+  uploadImage: async (file) => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await api.post('/api/posts/upload', formData, {
+      ...buildAccessConfig(),
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return res.url  
+  } catch (error) {
+    console.error('[PostAPI] uploadImage failed:', error)
+    throw error
+  }
+},
 }
