@@ -39,7 +39,7 @@ const router = createRouter({
       children: [
         { path: '', name: 'mypage.home', component: () => import('@/views/member/MyPageView.vue') },
         { path: 'edit', name: 'mypage.edit', component: () => import('@/views/member/MyProfileEditView.vue') },
-        // { path: 'donations', name: 'mypage.donations', component: () => import('@/views/member/DonationListView.vue') },
+        { path: 'donations', name: 'mypage.donations', component: () => import('@/views/payment/PaymentHistoryView.vue') },
         // { path: 'points', name: 'mypage.points', component: () => import('@/views/member/PointHistoryView.vue') },
       ]
     },
