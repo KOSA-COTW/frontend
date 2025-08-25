@@ -85,7 +85,7 @@
       <div class="payment-item" v-for="payment in payments" :key="payment.id">
         <div class="payment-header">
           <div class="payment-info">
-            <h3 class="payment-title">{{ payment.postTitle }}</h3>
+            <h3 class="payment-title">{{ props.adminMode ? payment.memberName : payment.postTitle }}</h3>
             <p class="payment-date">{{ formatDate(payment.createdAt) }}</p>
           </div>
           <div class="payment-amount">
@@ -108,9 +108,17 @@
             <span class="label">결제수단:</span>
             <span class="value">{{ payment.paymentMethod || '토스페이먼츠' }}</span>
           </div>
+          <div class="detail-row" v-if="payment.canceledAt">
+            <span class="label">취소일시:</span>
+            <span class="value">{{ formatDate(payment.canceledAt) }}</span>
+          </div>
+          <div class="detail-row" v-if="payment.cancelReason">
+            <span class="label">취소사유:</span>
+            <span class="value">{{ payment.cancelReason }}</span>
+          </div>
         </div>
 
-        <div class="payment-actions" v-if="(payment.status === 'DONE' || payment.status === 'SUCCESS') && payment.status !== 'CANCELED'">
+        <div class="payment-actions" v-if="(payment.status === 'DONE' || payment.status === 'SUCCESS') && payment.status !== 'CANCELED' && !props.adminMode">
           <a-button 
             type="link" 
             size="small"
@@ -123,7 +131,7 @@
             type="primary"
             danger
             size="small"
-            @click="cancelPayment(payment.paymentKey)"
+            @click="cancelPayment(payment.paymentKey || payment.orderId)"
             class="cancel-button"
           >
             취소
@@ -186,6 +194,14 @@ const props = defineProps({
   limit: {
     type: Number,
     default: null
+  },
+  adminMode: {
+    type: Boolean,
+    default: false
+  },
+  postId: {
+    type: [String, Number],
+    default: null
   }
 })
 
@@ -239,7 +255,13 @@ const fetchPayments = async () => {
       endDate: filters.dateRange?.[1]?.format('YYYY-MM-DD')
     }
     
-    const response = await paymentStore.getMyPayments(params)
+    // 관리자 모드일 때 다른 API 사용
+    let response
+    if (props.adminMode && props.postId) {
+      response = await axios.get(`/api/payments/post/${props.postId}`, { params })
+    } else {
+      response = await paymentStore.getMyPayments(params)
+    }
     
     // 응답 구조에 따른 안전한 데이터 처리
     if (Array.isArray(response)) {
@@ -549,6 +571,7 @@ onMounted(() => {
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
+
 
 /* 반응형 */
 @media (max-width: 768px) {
