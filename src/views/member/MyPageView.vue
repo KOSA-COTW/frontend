@@ -253,9 +253,17 @@ onMounted(information)
 
 <style scoped>
 /* 우측 콘텐츠 전용 스타일 (사이드바 관련 코드/스타일 제거) */
-.mypage-content { padding: 16px 0; }
+.mypage-content { 
+  padding: 16px 24px; 
+  width: 100%;
+}
 
-.top-card, .donation-card { border-radius: 16px; padding: 24px; }
+.top-card, .donation-card { 
+  border-radius: 16px; 
+  padding: 32px 36px; 
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f0f0;
+}
 .top-section { display: grid; grid-template-columns: 72px 1fr; gap: 16px; }
 .user-info { display: flex; flex-direction: column; gap: 8px; }
 .header-line { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
@@ -289,12 +297,52 @@ onMounted(information)
 .mt8 { margin-top: 8px; }
 .danger-note { margin-top: 8px; font-size: 12px; color: #c0342b; }
 
+/* PaymentHistoryView 컴포넌트가 포함된 경우 너비 조정 */
+.mypage-content :deep(.payment-history) {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mypage-content :deep(.payment-history .stats-grid) {
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.mypage-content :deep(.payment-history .stat-card) {
+  padding: 16px 12px;
+  min-width: 160px;
+}
+
+.mypage-content :deep(.payment-history .stat-value) {
+  font-size: 20px;
+}
+
+.mypage-content :deep(.payment-history .stat-label) {
+  font-size: 13px;
+}
+
 @media (max-width: 768px) {
+  .mypage-content {
+    padding: 16px 20px;
+    max-width: none;
+  }
+  
+  .top-card, .donation-card { 
+    padding: 24px 20px;
+  }
+  
   .top-section { grid-template-columns: 1fr; justify-items: center; text-align: center; }
   .header-line { flex-direction: column; align-items: center; }
   .link-buttons { justify-content: center; }
   .invite-summary { flex-direction: column; gap: 6px; }
   .donation-summary { flex-direction: column; align-items: center; text-align: center; gap: 8px; }
   .count { text-align: center; }
+  
+  /* 모바일에서 PaymentHistoryView 통계 카드 1열로 배치 */
+  .mypage-content :deep(.payment-history .stats-grid) {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
 }
 </style>
