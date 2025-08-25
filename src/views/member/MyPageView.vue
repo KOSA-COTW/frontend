@@ -128,13 +128,14 @@
           </div>
         </a-card>
 
-        <!-- 다른 탭들 (간단 자리표시자) -->
-        <a-card v-if="selectedMenu === '기부내역'">
-          <p>내 기부내역을 확인할 수 있어요. (목록 컴포넌트 연결 예정)</p>
-        </a-card>
-        <a-card v-if="selectedMenu === '포인트내역'">
-          <p>포인트 적립/사용 내역을 확인할 수 있어요.</p>
-        </a-card>
+        <!-- 기부내역 탭 -->
+        <div v-if="selectedMenu === '기부내역'" class="payment-history-section">
+          <PaymentHistoryView 
+            title="" 
+            subtitle="" 
+            :hide-stats="false" 
+          />
+        </div>
         <a-card v-if="selectedMenu === '증서출급'">
           <p>기부 증서를 내려받을 수 있어요.</p>
         </a-card>
@@ -198,11 +199,12 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { message } from 'ant-design-vue'
 import axios from 'axios'
+import PaymentHistoryView from '@/views/payment/PaymentHistoryView.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
 
-const menuItems = ['내 정보', '기부내역', '포인트내역']
+const menuItems = ['내 정보', '기부내역']
 const selectedMenu = ref('내 정보')
 
 const loading = ref(true)
