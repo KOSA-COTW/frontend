@@ -314,7 +314,7 @@ function proceedToPayment() {
               class="quick-amount-btn"
               :class="{ active: donationAmount === amount }"
             >
-              {{ amount }}원
+              {{ amount.toLocaleString() }}원
             </button>
           </div>
 
@@ -332,7 +332,7 @@ function proceedToPayment() {
 
           <div class="selected-amount">
             <span>선택된 금액: </span>
-            <span class="amount-display">{{ donationAmount}}원</span>
+            <span class="amount-display">{{ donationAmount.toLocaleString()}}원</span>
           </div>
         </div>
 
@@ -345,7 +345,7 @@ function proceedToPayment() {
             :style="{background: mainColor, borderColor: mainColor}"
             @click="proceedToPayment"
           >
-            {{ donationAmount }}원 기부하기
+            {{ donationAmount.toLocaleString() }}원 기부하기
           </a-button>
         </div>
       </div>
