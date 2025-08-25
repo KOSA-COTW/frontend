@@ -17,7 +17,8 @@
             </a-form-item>
             <a-form-item>
               <a-checkbox v-model:checked="form.remember">이메일 기억하기</a-checkbox>
-              <a class="forgot-link" href="#">아이디/비밀번호 찾기</a>
+<!--              이메일 인증 추가 시 이메일을 통해 찾는 로직 구현 예정. 후순위-->
+<!--              <a class="forgot-link" href="#">아이디/비밀번호 찾기</a>-->
             </a-form-item>
             <a-button block type="primary" html-type="submit" class="login-btn" :loading="loading">
               로그인
@@ -59,7 +60,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import axios from 'axios'
 import api from '@/utils/axios'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.js'
 
@@ -146,17 +147,47 @@ const handleSubmit = async () => {
 
       console.error('로그인 에러:', error);
 
-      if (error.response?.status === 401) {
-        message.error('이메일 또는 비밀번호가 올바르지 않습니다.');
-      } else if (error.response?.status === 400) {
-        message.error('입력 정보를 확인해주세요.');
-      } else {
-        message.error('로그인에 실패했습니다. 다시 시도해주세요.');
-      }
+    const code = error?.response?.data?.error
+    switch (code) {
+      case 'ACCOUNT_DELETED': // 복구 플로우 진입
+        promptRecover(form.email)
+        break
+      case 'ACCOUNT_SUSPENDED':
+        message.error('관리자에 의해 정지된 계정입니다.')
+        break
+      case 'ACCOUNT_PENDING':
+        message.info('이메일 인증이 필요합니다. 메일함을 확인하세요.')
+        break
+      default:
+        message.error('이메일 또는 비밀번호가 올바르지 않습니다.')
+    }
     } finally {
       loading.value = false;
     }
 }
+
+// 추후 이메일 인증을 통한 복구 추가 예정. 후순위
+function promptRecover(email) {
+  Modal.confirm({
+    title: '계정 복구',
+    content: '해당 계정은 현재 탈퇴 상태입니다. 복구를 진행하시겠습니까?',
+    okText: '복구 메일 보내기',
+    cancelText: '취소',
+    // onOk가 Promise를 반환하면 confirm 버튼에 로딩이 자동 표시됨
+    onOk: async () => {
+      try {
+        await api.post('/api/recover', { email }) // ← 서버의 “복구 링크 발송” 엔드포인트
+        message.success('복구 메일을 전송했어요. 메일함을 확인해 주세요.')
+        // (선택) 바로 복구 페이지로 보내고 싶으면:
+        // router.push({ name: 'recover', query: { email } })
+      } catch (err) {
+        message.error(err?.response?.data?.message ?? '복구 요청에 실패했어요.')
+        throw err // 실패 시 confirm 닫히지 않게 하려면 throw 유지
+      }
+    }
+  })
+}
+
 
 function goToSignUp() {
   router.push('/signup');
