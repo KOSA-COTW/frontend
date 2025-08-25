@@ -35,8 +35,13 @@ const router = createRouter({
     },
     {
       path: '/mypage',
-      name: 'mypage',
-      component: MyPageView
+      component: () => import('@/views/member/MyPageLayoutView.vue'),
+      children: [
+        { path: '', name: 'mypage.home', component: () => import('@/views/member/MyPageView.vue') },
+        { path: 'edit', name: 'mypage.edit', component: () => import('@/views/member/MyProfileEditView.vue') },
+        // { path: 'donations', name: 'mypage.donations', component: () => import('@/views/member/DonationListView.vue') },
+        // { path: 'points', name: 'mypage.points', component: () => import('@/views/member/PointHistoryView.vue') },
+      ]
     },
     // 특정 에러 타입별 라우트
     {

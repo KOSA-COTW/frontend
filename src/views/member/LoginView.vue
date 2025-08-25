@@ -17,7 +17,8 @@
             </a-form-item>
             <a-form-item>
               <a-checkbox v-model:checked="form.remember">이메일 기억하기</a-checkbox>
-              <a class="forgot-link" href="#">아이디/비밀번호 찾기</a>
+<!--              이메일 인증 추가 시 이메일을 통해 찾는 로직 구현 예정. 후순위-->
+<!--              <a class="forgot-link" href="#">아이디/비밀번호 찾기</a>-->
             </a-form-item>
             <a-button block type="primary" html-type="submit" class="login-btn" :loading="loading">
               로그인
@@ -165,6 +166,7 @@ const handleSubmit = async () => {
     }
 }
 
+// 추후 이메일 인증을 통한 복구 추가 예정. 후순위
 function promptRecover(email) {
   Modal.confirm({
     title: '계정 복구',
