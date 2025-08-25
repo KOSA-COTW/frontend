@@ -69,6 +69,7 @@
             <p class="label">총 기부금액</p>
             <p class="amount">{{ (stats.totalDonation || 0).toLocaleString() }}원</p>
           </div>
+
           <div class="count">
             <p>기부 <b>{{ stats.oneTimeCount || 0 }}회</b></p>
 <!--            <p v-if="stats.points !== null">포인트 <b>{{ (stats.points || 0).toLocaleString() }}</b></p>-->
@@ -79,6 +80,7 @@
         </div>
       </a-card>
     </a-space>
+
 
     <!-- 회원 탈퇴 모달 -->
     <a-modal
@@ -120,11 +122,14 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { message } from 'ant-design-vue'
 import axios from 'axios'
+import PaymentHistoryView from '@/views/payment/PaymentHistoryView.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
 
+
 // 상태
+
 const loading = ref(true)
 const inviteCount = ref(0)
 const userInfo = reactive({

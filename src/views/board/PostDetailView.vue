@@ -9,7 +9,7 @@ import { usePostStore } from '@/stores/post'
 const mainColor = '#00C851'
 const newComment = ref('')
 const comments = ref([])
-
+const activeImage = ref('')
 // 모달 관련 상태
 const donationModalVisible = ref(false)
 const donationAmount = ref(10000)
@@ -31,6 +31,10 @@ const postStore = usePostStore()
 onMounted(async () => {
   try {
     post.value = await postStore.fetchPostDetail(postId)
+
+    if (post.value?.imageUrls?.length) {
+      activeImage.value = post.value.imageUrls[0]  
+    }
   } catch (err) {
     error.value = '게시글을 불러오는 중 오류가 발생했습니다.'
   } finally {
@@ -186,14 +190,20 @@ function proceedToPayment() {
 
     <div class="main-row">
       <div class="main-left">
-        <a-carousel v-if="post.imageUrls && post.imageUrls.length" autoplay style="width:100%;border-radius:16px;">
-  <div v-for="(img, idx) in post.imageUrls" :key="idx">
-    <div class="img-wrap">
-      <img class="main-img" :src="img || 'https://placehold.co/300x180'" />
-    </div>
+<div v-if="post.imageUrls?.length" class="gallery">
+  <div class="main-view">
+    <img :src="activeImage" alt="main image" />
   </div>
-</a-carousel>
-
+  <div class="thumbs">
+    <img
+      v-for="(img, idx) in post.imageUrls"
+      :key="idx"
+      :src="img"
+      :class="{ active: activeImage === img }"
+      @click="activeImage = img"
+    />
+  </div>
+</div>
 <!-- fallback -->
 <div v-else class="img-wrap">
   <img class="main-img" src="https://placehold.co/300x180" />
@@ -304,7 +314,7 @@ function proceedToPayment() {
               class="quick-amount-btn"
               :class="{ active: donationAmount === amount }"
             >
-              {{ amount }}원
+              {{ amount.toLocaleString() }}원
             </button>
           </div>
 
@@ -322,7 +332,7 @@ function proceedToPayment() {
 
           <div class="selected-amount">
             <span>선택된 금액: </span>
-            <span class="amount-display">{{ donationAmount}}원</span>
+            <span class="amount-display">{{ donationAmount.toLocaleString()}}원</span>
           </div>
         </div>
 
@@ -335,7 +345,7 @@ function proceedToPayment() {
             :style="{background: mainColor, borderColor: mainColor}"
             @click="proceedToPayment"
           >
-            {{ donationAmount }}원 기부하기
+            {{ donationAmount.toLocaleString() }}원 기부하기
           </a-button>
         </div>
       </div>
@@ -619,4 +629,29 @@ function proceedToPayment() {
   padding-top: 16px;
   border-top: 1px solid #f0f0f0;
 }
+.gallery .main-view img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.gallery .thumbs {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  overflow-x: auto;
+}
+.gallery .thumbs img {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.gallery .thumbs img.active {
+  border: 2px solid #00C851;
+  opacity: 1;
+}
+
 </style>

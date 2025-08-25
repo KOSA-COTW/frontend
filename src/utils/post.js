@@ -115,4 +115,71 @@ export const postAPI = {
       throw error
     }
   },
+
+  // 공지사항
+  getAllNotices: async () => {
+    try {
+      const response = await api.get('/api/notices')
+      return response
+    } catch (error) {
+      console.error('[PostAPI] getAllNotices failed:', error)
+      throw error
+    }
+  },
+
+  getNoticeById: async (id) => {
+    try {
+      const response = await api.get(`/api/notices/${id}`)
+      return response
+    } catch (error) {
+      console.error('[PostAPI] getNoticeById failed:', error)
+      throw error
+    }
+  },
+
+  createNotice: async (data) => {
+    try {
+      const response = await api.post('/api/notices', data, buildAccessConfig())
+      return response
+    } catch (error) {
+      console.error('[PostAPI] createNotice failed:', error)
+      throw error
+    }
+  },
+
+  updateNotice: async (id, data) => {
+    try {
+      const response = await api.put(`/api/notices/${id}`, data, buildAccessConfig())
+      return response
+    } catch (error) {
+      console.error('[PostAPI] updateNotice failed:', error)
+      throw error
+    }
+  },
+
+  deleteNotice: async (id) => {
+    try {
+      const response = await api.delete(`/api/notices/${id}`, buildAccessConfig())
+      return response
+    } catch (error) {
+      console.error('[PostAPI] deleteNotice failed:', error)
+      throw error
+    }
+  },
+
+  uploadImage: async (file) => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await api.post('/api/posts/upload', formData, {
+      ...buildAccessConfig(),
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return res.url  
+  } catch (error) {
+    console.error('[PostAPI] uploadImage failed:', error)
+    throw error
+  }
+},
 }
