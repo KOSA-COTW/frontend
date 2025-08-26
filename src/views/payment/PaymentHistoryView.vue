@@ -8,8 +8,8 @@
     <!-- 필터 및 정렬 -->
     <div class="filters-section">
       <div class="filter-row">
-        <a-select 
-          v-model:value="filters.status" 
+        <a-select
+          v-model:value="filters.status"
           placeholder="결제 상태"
           style="width: 150px"
           @change="fetchPayments"
@@ -21,15 +21,15 @@
           <a-select-option value="CANCELED">취소</a-select-option>
         </a-select>
 
-        <a-range-picker 
+        <a-range-picker
           v-model:value="filters.dateRange"
           :placeholder="['시작일', '종료일']"
           @change="fetchPayments"
           style="margin-left: 12px"
         />
 
-        <a-select 
-          v-model:value="filters.sortBy" 
+        <a-select
+          v-model:value="filters.sortBy"
           placeholder="정렬"
           style="width: 120px; margin-left: 12px"
           @change="fetchPayments"
@@ -68,10 +68,10 @@
 
     <!-- 에러 -->
     <div v-else-if="error" class="error-section">
-      <a-alert 
-        :message="error" 
-        type="error" 
-        show-icon 
+      <a-alert
+        :message="error"
+        type="error"
+        show-icon
         action
       >
         <template #action>
@@ -90,15 +90,15 @@
           </div>
           <div class="payment-amount">
             <span class="amount" :class="{ 'cancelled-amount': payment.status === 'CANCELED' }">{{ payment.amount.toLocaleString() }}원</span>
-            <span 
-              class="status-badge" 
+            <span
+              class="status-badge"
               :class="getStatusClass(payment.status)"
             >
               {{ getStatusText(payment.status) }}
             </span>
           </div>
         </div>
-        
+
         <div class="payment-details">
           <div class="detail-row">
             <span class="label">주문번호:</span>
@@ -119,15 +119,15 @@
         </div>
 
         <div class="payment-actions" v-if="(payment.status === 'DONE' || payment.status === 'SUCCESS') && payment.status !== 'CANCELED' && !props.adminMode">
-          <a-button 
-            type="link" 
+          <a-button
+            type="link"
             size="small"
             @click="goToPost(payment.postId)"
             v-if="payment.postId"
           >
             게시글 보기
           </a-button>
-          <a-button 
+          <a-button
             type="primary"
             danger
             size="small"
@@ -157,7 +157,7 @@
 
     <!-- 빈 상태 -->
     <div v-else class="empty-section">
-      <a-empty 
+      <a-empty
         description="아직 기부 내역이 없습니다"
         :image="'/empty/donation.svg'"
       >
@@ -176,6 +176,7 @@ import { usePaymentStore } from '@/stores/payment'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import axios from '@/utils/axios'
+import { paymentAPI } from '@/utils/payment'
 
 // Props
 const props = defineProps({
@@ -232,7 +233,7 @@ const stats = computed(() => {
   const successPayments = payments.value.filter(p => p.status === 'DONE' || p.status === 'SUCCESS')
   const totalAmount = successPayments.reduce((sum, p) => sum + p.amount, 0)
   const totalCount = successPayments.length
-  
+
   return {
     totalCount,
     totalAmount,
@@ -244,7 +245,7 @@ const stats = computed(() => {
 const fetchPayments = async () => {
   loading.value = true
   error.value = null
-  
+
   try {
     const params = {
       page: pagination.current - 1,
@@ -254,15 +255,15 @@ const fetchPayments = async () => {
       startDate: filters.dateRange?.[0]?.format('YYYY-MM-DD'),
       endDate: filters.dateRange?.[1]?.format('YYYY-MM-DD')
     }
-    
+
     // 관리자 모드일 때 다른 API 사용
     let response
     if (props.adminMode && props.postId) {
-      response = await axios.get(`/api/payments/post/${props.postId}`, { params })
+      response = await paymentAPI.getPaymentsByPost(props.postId, params)
     } else {
       response = await paymentStore.getMyPayments(params)
     }
-    
+
     // 응답 구조에 따른 안전한 데이터 처리
     if (Array.isArray(response)) {
       payments.value = response
@@ -298,7 +299,7 @@ const formatDate = (dateString) => {
 
 const getStatusClass = (status) => {
   switch (status) {
-    case 'DONE': 
+    case 'DONE':
     case 'SUCCESS': return 'status-success'
     case 'FAILED': return 'status-failed'
     case 'PENDING': return 'status-pending'
@@ -343,7 +344,7 @@ const cancelPayment = async (paymentKey) => {
     await axios.post('/api/payments/cancel', {
       paymentKey: paymentKey
     })
-    
+
     message.success('결제가 취소되었습니다.')
     fetchPayments()
   } catch (error) {
@@ -578,26 +579,26 @@ onMounted(() => {
   .payment-history {
     padding: 16px;
   }
-  
+
   .payment-header {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .payment-amount {
     text-align: left;
   }
-  
+
   .filter-row {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .filter-row > * {
     width: 100% !important;
     margin-left: 0 !important;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
