@@ -368,7 +368,6 @@ const deleteNotice = async (id) => {
       <div class="no-results-icon">📭</div>
       <h3>{{ searchKeyword ? '검색 결과가 없습니다' : '등록된 공지사항이 없습니다' }}</h3>
       <p v-if="searchKeyword">다른 검색어로 다시 시도해보세요.</p>
-      <p v-else>첫 번째 공지사항을 등록해보세요.</p>
     </div>
 
     <!-- 🔹 페이징 -->

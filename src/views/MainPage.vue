@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Progress } from 'ant-design-vue'
 import { usePostStore } from '@/stores/post'
@@ -7,13 +7,11 @@ import { storeToRefs } from 'pinia'
 
 const router = useRouter()
 const postStore = usePostStore()
+const categoryContainer = ref(null)
 
-// Pinia refs (반응성 유지)
-const { filteredPosts, totalPostFiltered, selectedCategory, loading } = storeToRefs(postStore)
-
-// v-for용 목록 / 총합
-const postItems = filteredPosts
-const totalDonation = computed(() => (totalPostFiltered.value || 0).toLocaleString() + '원')
+const { posts, totalPostAll, loading } = storeToRefs(postStore)
+const postItems = posts
+const totalDonation = computed(() => (totalPostAll.value || 0).toLocaleString() + '원')
 
 // 카테고리 클릭(같은 것 재클릭 시 전체로)
 function onClickCategory(name) {
@@ -31,8 +29,29 @@ onMounted(() => {
   postStore.fetchPostsHome()
 })
 
-// 카테고리 목록
+// 카테고리 스크롤 함수
+function scrollCategories(direction) {
+  if (!categoryContainer.value) return
+  
+  const scrollAmount = 200
+  const currentScroll = categoryContainer.value.scrollLeft
+  
+  if (direction === 'left') {
+    categoryContainer.value.scrollTo({
+      left: currentScroll - scrollAmount,
+      behavior: 'smooth'
+    })
+  } else {
+    categoryContainer.value.scrollTo({
+      left: currentScroll + scrollAmount,
+      behavior: 'smooth'
+    })
+  }
+}
+
+// 카테고리 목록 
 const categories = [
+  { id: 0, name: '전체', icon: 'https://cdn-icons-png.flaticon.com/512/992/992651.png' },
   { id: 1, name: '아동', icon: 'https://cdn-icons-png.flaticon.com/512/921/921347.png' },
   { id: 2, name: '장애인', icon: 'https://cdn-icons-png.flaticon.com/512/8731/8731087.png' },
   { id: 3, name: '어르신', icon: 'https://cdn-icons-png.flaticon.com/512/9301/9301483.png' },
@@ -54,17 +73,6 @@ const categories = [
         <h2 class="amount">{{ totalDonation }}</h2>
       </a-col>
     </a-row>
-
-    <!-- 선택된 카테고리 안내 + 전체보기 -->
-    <div v-if="selectedCategory" style="margin-top: 0.5rem; font-size: 0.9rem">
-      현재 카테고리: <b>{{ selectedCategory }}</b>
-      <a
-        @click="postStore.clearCategory()"
-        style="margin-left: 8px; color: #fff; text-decoration: underline; cursor: pointer"
-      >
-        전체보기
-      </a>
-    </div>
   </div>
 
   <!-- 로딩 상태 -->
@@ -109,7 +117,7 @@ const categories = [
   <div class="event-banner-section">
     <a-row :gutter="16">
       <a-col :span="12">
-        <div class="event-banner pink-banner">
+        <div class="event-banner pink-banner" @click="router.push('/about')" style="cursor: pointer">
           <div>
             <div class="banner-title">세상의 중심은 어디일까요?</div>
             <div class="banner-subtitle">
@@ -131,22 +139,45 @@ const categories = [
     </a-row>
   </div>
 
-  <!-- 카테고리 리스트 -->
+  <!-- 새로운 카테고리 디자인 -->
   <div class="category-section">
-    <div class="category-title">카테고리</div>
-    <div class="category-list">
-      <button
-        v-for="category in categories"
-        :key="category.id"
-        class="category-item"
-        :class="{ active: selectedCategory === category.name }"
-        @click="onClickCategory(category.name)"
-      >
-        <div class="circle-icon">
-          <img :src="category.icon" alt="icon" />
+    <div class="category-header">
+      <h2 class="category-title">카테고리</h2>
+      <div class="category-nav">
+        <button class="nav-btn prev" @click="scrollCategories('left')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="nav-btn next" @click="scrollCategories('right')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    
+    <div class="category-scroll-container" ref="categoryContainer">
+      <div class="category-list">
+        <div
+          v-for="category in categories"
+          :key="category.id"
+          class="category-item"
+          @click="() => { 
+            if (category.name === '전체') {
+              postStore.clearCategory()
+            } else {
+              postStore.setCategory(category.name)
+            }
+            router.push('/posts')                
+          }"
+        >
+          <div class="category-circle">
+            <img :src="category.icon" :alt="category.name" />
+          </div>
+          <span class="category-name">{{ category.name }}</span>
         </div>
-        <div class="category-name">{{ category.name }}</div>
-      </button>
+      </div>
     </div>
   </div>
 </template>
@@ -187,6 +218,10 @@ const categories = [
 .donation-text {
   padding: 12px 16px;
   background-color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 150px;
 }
 .category {
   color: #00c851;
@@ -198,6 +233,13 @@ const categories = [
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 8px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  min-height: 2.8em;
 }
 .bottom-info {
   display: flex;
@@ -242,53 +284,197 @@ const categories = [
   width: 50px;
   height: 50px;
 }
+
 .category-section {
-  background-color: #fcfcf6;
-  padding: 30px 20px 10px;
-  margin-bottom: 30px;
+  padding: 30px 20px;
+  background: white;
+  margin: 40px 0;
 }
-.category-title {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin-bottom: 20px;
-}
-.category-list {
+
+.category-header {
   display: flex;
-  justify-content: center;
-  gap: clamp(12px, 3vw, 40px);
-  padding-bottom: 10px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding: 0 4px;
 }
-.category-item {
-  all: unset;
-  cursor: pointer;
-  display: inline-block;
-  text-align: center;
-  width: 80px;
-}
-.category-item.active .circle-icon {
-  box-shadow: 0 0 0 3px rgba(0, 200, 81, 0.25);
-}
-.category-item.active .category-name {
-  color: #00c851;
+
+.category-title {
+  font-size: 1.4rem;
   font-weight: 700;
+  color: #333;
+  margin: 0;
 }
-.circle-icon {
-  width: 60px;
-  height: 60px;
-  background-color: white;
+
+.category-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e0e0e0;
+  background: white;
   border-radius: 50%;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #666;
 }
-.circle-icon img {
-  width: 32px;
-  height: 32px;
+
+.nav-btn:hover {
+  border-color: #00c851;
+  color: #00c851;
+  background: #f8f9fa;
 }
+
+.category-scroll-container {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.category-scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+.category-list {
+  display: flex;
+  gap: 24px;
+  padding: 8px 4px 20px 4px;
+  min-width: fit-content;
+}
+
+.category-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 12px;
+  border-radius: 12px;
+  min-width: 80px;
+}
+
+.category-item:hover {
+  background: #f8f9fa;
+  transform: translateY(-2px);
+}
+
+.category-circle {
+  width: 120px;
+  height: 120px;
+  background: #f5f5f5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.category-circle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  background: #ffd700;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.category-circle img {
+  width: 56px;
+  height: 56px;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+.category-item:hover .category-circle {
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.category-item:hover .category-circle::before {
+  background: #00c851;
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
 .category-name {
-  font-size: 0.8rem;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #333;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.category-item:hover .category-name {
+  color: #00c851;
+  font-weight: 600;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .category-header {
+    padding: 0;
+  }
+  
+  .category-title {
+    font-size: 1.2rem;
+  }
+  
+  .category-list {
+    gap: 20px;
+  }
+  
+  .category-circle {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .category-circle img {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .category-circle::before {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .category-name {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .category-section {
+    padding: 25px 16px;
+    margin: 30px 0;
+  }
+  
+  .category-list {
+    gap: 16px;
+  }
+  
+  .category-circle {
+    width: 55px;
+    height: 55px;
+  }
+  
+  .category-circle img {
+    width: 26px;
+    height: 26px;
+  }
 }
 </style>

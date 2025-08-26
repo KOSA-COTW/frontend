@@ -9,7 +9,7 @@ const postStore = usePostStore()
 const { posts } = storeToRefs(postStore)
 
 const activeTab = ref('ongoing')              // 'ongoing' | 'completed'
-const selectedCategory = ref('ALL')           // 카테고리 필터
+const { selectedCategory } = storeToRefs(postStore)           // 카테고리 필터
 const searchQuery = ref('')                   // 검색어
 
 // 카테고리 목록 (필요 시 백엔드에서 내려주는 값으로 대체 가능)
@@ -37,7 +37,7 @@ const baseByTab = computed(() => {
 
 // 2) 카테고리 필터
 const byCategory = computed(() => {
-  if (selectedCategory.value === 'ALL') return baseByTab.value
+  if (!selectedCategory.value || selectedCategory.value === 'ALL') return baseByTab.value
   return baseByTab.value.filter(p => p.category === selectedCategory.value)
 })
 
@@ -178,9 +178,27 @@ function goDetail(id) {
 .custom-card { padding:0; overflow:hidden; border-radius:12px; box-shadow:0 6px 12px rgba(0,0,0,.15); margin-bottom:24px; position:relative; }
 .image-wrap { position: relative; }
 .donation-image { width:100%; height:180px; object-fit:cover; border-top-left-radius:12px; border-top-right-radius:12px; }
-.donation-text { padding:12px 16px; background:#fff; }
+.donation-text {
+  padding: 12px 16px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 150px;
+}
 .category { color:#00C851; font-weight:700; margin-bottom:4px; font-size:.9rem; }
-.title { font-size:1rem; font-weight:600; margin-bottom:8px; }
+.title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  min-height: 2.8em;
+}
 .bottom-info { display:flex; justify-content:space-between; margin-top:4px; color:#777; font-size:.85rem; }
 .percent { color:#00C851; font-weight:700; }
 

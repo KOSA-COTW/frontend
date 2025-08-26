@@ -33,4 +33,8 @@ export const boardRoutes = [
     component: () => import('@/views/board/NoticeCreateView.vue'),
     meta: { requiresAuth: true, roles: ['ADMIN'] }
   },
+  { path: '/about',  
+    name: 'about', 
+    component: () => import('@/views/board/AboutView.vue') 
+  },
 ]

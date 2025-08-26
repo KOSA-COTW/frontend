@@ -253,7 +253,7 @@ function proceedToPayment() {
           <a-button type="primary" class="donate-btn" :style="{background: mainColor, borderColor: mainColor}" @click="openDonationModal" :disabled="post.status === 'COMPLETED' && !isAdmin">
             <template v-if="post.status === 'COMPLETED' && !isAdmin">마감됨</template>
             <template v-else-if="isAdmin">기부내역보기</template>
-            <template v-else>곧장기부하기</template>
+            <template v-else>기부하기</template>
           </a-button>
         </div>
       </div>
@@ -262,27 +262,16 @@ function proceedToPayment() {
     <!-- 상세 내용 -->
     <div class="desc-section">
       <div class="desc-title">
-        기부금이 <span style="color:#FFC107">곧장</span>
+        모금소개
       </div>
       <div class="desc-box">
         <div class="desc-block" v-html="post.content"></div>
-      </div>
-      <div class="stat-row">
-        <div class="stat-col" v-for="(s, idx) in post.stat" :key="idx">
-          <div class="stat-label">
-            <template v-if="idx === 0">미취학</template>
-            <template v-else-if="idx === 1">초등학교 저학년</template>
-            <template v-else-if="idx === 2">초등학교 고학년</template>
-            <template v-else>중학생 이상</template>
-          </div>
-          <div class="stat-value">{{ s }}</div>
-        </div>
       </div>
     </div>
     <!-- 댓글/한마디 영역 -->
     <div class="comment-section">
       <div class="comment-title">
-        따뜻한 <span style="color:#FFC107;">한마디</span>
+        따뜻한 <span style="color:#00C851;">한마디</span>
       </div>
       <div class="comment-input-row">
         <a-input
