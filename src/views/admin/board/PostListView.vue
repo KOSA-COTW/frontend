@@ -9,7 +9,8 @@
       </div>
     </div>
 
-    <div class="search-section">
+    <!-- 검색 기능은 현재 백엔드에서 지원하지 않음 -->
+    <!-- <div class="search-section">
       <a-input-search
         v-model:value="searchText"
         placeholder="제목 또는 내용으로 검색"
@@ -18,7 +19,7 @@
         @search="handleSearch"
         class="search-input"
       />
-    </div>
+    </div> -->
 
     <div class="filter-section">
       <div class="filter-row">
@@ -250,30 +251,24 @@ export default {
     const fetchPosts = async () => {
       loading.value = true
       try {
-        const params = {}
+        const params = {
+          limit: pagination.pageSize,
+          page: pagination.current,
+          sortDirection: sortOrder.value.toUpperCase()
+        }
         
-        // 기본값이 아닌 경우에만 파라미터 추가
-        if (pagination.current !== 1) {
-          params.page = pagination.current - 1
-        }
-        if (pagination.pageSize !== 10) {
-          params.limit = pagination.pageSize
-        }
-        if (sortOrder.value !== 'desc') {
-          params.sortOrder = sortOrder.value
-        }
+        // 카테고리가 선택된 경우에만 추가
         if (selectedCategory.value) {
           params.category = getCategoryEnumValue(selectedCategory.value)
         }
-        if (searchText.value) {
-          params.search = searchText.value
-        }
         
-        const response = await axios.get('/api/posts/all', { params })
+        const response = await axios.get('/api/posts/admin', { params })
         
-        posts.value = response.content
-        pagination.total = response.totalElements
-        totalElements.value = response.totalElements
+        // 백엔드에서 List<PostListResponseDto>를 직접 반환하므로 response가 배열
+        posts.value = Array.isArray(response) ? response : []
+        // 페이지네이션 정보는 별도로 관리하거나 백엔드에서 추가 제공 필요
+        pagination.total = posts.value.length
+        totalElements.value = posts.value.length
       } catch (error) {
         console.error('게시글 목록 조회 실패:', error)
         message.error('게시글 목록을 불러오는데 실패했습니다.')
