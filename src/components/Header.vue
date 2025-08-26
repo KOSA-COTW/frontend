@@ -25,8 +25,8 @@
         </template>
 
         <template v-else>
-          <!-- 로그인한 누구나 기부글 쓰기 가능 -->
-          <a-menu-item key="create-post">
+          <!-- 일반 사용자만 기부글 쓰기 가능 (ADMIN 제외) -->
+          <a-menu-item key="create-post" v-if="!isAdmin">
             <router-link to="/posts/create">기부글 쓰기</router-link>
           </a-menu-item>
           <template v-if="isAdmin">
