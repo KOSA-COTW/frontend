@@ -183,7 +183,7 @@ const information = async () => {
   try {
     const user = localStorage.getItem('auth')
     const accessToken = user ? JSON.parse(user).accessToken : null
-    const { data: info } = await axios.get('/api/info', { headers: { access: accessToken } })
+    const { data: info } = await axios.get('/api/info', { headers: { Authorization: `Bearer ${accessToken}` } })
 
     userInfo.email = info.email ?? null
     userInfo.name = info.name ?? null
@@ -223,7 +223,7 @@ const handleDelete = async () => {
     const user = localStorage.getItem('auth')
     const accessToken = user ? JSON.parse(user).accessToken : null
     // 프로젝트 컨벤션에 맞춰 POST 사용
-    await axios.post('/api/deactivate', { password: deletePassword.value }, { headers: { access: accessToken } })
+    await axios.post('/api/deactivate', { password: deletePassword.value }, { headers: { Authorization: `Bearer ${accessToken}` } })
     message.success('계정이 삭제되었습니다. 그동안 이용해 주셔서 감사합니다.')
     closeDeleteModal(); auth.logout(); router.replace('/')
   } catch (e) {
