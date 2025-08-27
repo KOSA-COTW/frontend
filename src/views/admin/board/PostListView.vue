@@ -86,7 +86,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import axios from '@/utils/axios'
 import { useRouter } from 'vue-router'
-
+import { postAPI } from '@/utils/post'
 export default {
   name: 'AdminPostListPage',
   setup() {
@@ -222,14 +222,21 @@ export default {
       fetchPosts()
     }
 
-    const handleMakePublic = () => {
-      if (selectedRowKeys.value.length === 0) {
-        message.warning('공개할 게시글을 선택해주세요.')
-        return
-      }
-      message.success(`${selectedRowKeys.value.length}개 게시글을 전체 공개로 설정했습니다.`)
-      selectedRowKeys.value = []
+    const handleMakePublic = async () => {
+    if (selectedRowKeys.value.length === 0) {
+      message.warning('공개할 게시글을 선택해주세요.')
+      return
     }
+    try {
+      await postAPI.changeVisibilityBulk(selectedRowKeys.value, true)
+      message.success(`${selectedRowKeys.value.length}개 게시글을 전체 공개로 변경했습니다.`)
+      selectedRowKeys.value = []
+      fetchPosts()
+    } catch (e) {
+      console.error('전체 공개 처리 실패:', e)
+      message.error('전체 공개 처리 중 오류가 발생했습니다.')
+    }
+  }
 
     const rowSelection = {
       selectedRowKeys: selectedRowKeys,
