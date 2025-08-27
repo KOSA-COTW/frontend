@@ -60,6 +60,12 @@ const canManage = computed(() => {
   return !!(isAdmin || (myEmail && authorEmail && myEmail === authorEmail))
 })
 
+// 관리자 여부 확인
+const isAdmin = computed(() => {
+  const storedAuth = JSON.parse(localStorage.getItem('auth') || '{}')
+  return storedAuth?.user?.role === 'ADMIN'
+})
+
 async function deletePost() {
   if (!auth.isLoggedIn) {
     Modal.warning({
@@ -119,13 +125,21 @@ function editPost() {
   router.push(`/posts/${postId}/edit`)
 }
 
-// 기부 모달 관련 함수
+// 기부 모달 관련 함수 또는 기부내역 보기 (관리자)
 function openDonationModal() {
   if (!auth.isLoggedIn) {
     message.warning('로그인이 필요합니다.')
     router.push('/login')
     return
   }
+  
+  // 관리자인 경우 기부내역 페이지로 이동
+  if (isAdmin.value) {
+    router.push(`/admin/donations/${postId}`)
+    return
+  }
+  
+  // 일반 사용자인 경우 기부 모달 열기
   donationModalVisible.value = true
 }
 
@@ -236,8 +250,10 @@ function proceedToPayment() {
             <div v-if="post.overfunded > 0">초과모금 <span style="color: #00C851;">{{ post.overfunded }}원</span></div>
             <div>마감까지 <span>{{ post.daysLeft }}일</span></div>
           </div>
-          <a-button type="primary" class="donate-btn" :style="{background: mainColor, borderColor: mainColor}" @click="openDonationModal" :disabled="post.status === 'COMPLETED'">
-            {{ post.status === 'COMPLETED' ? '마감됨' : '곧장기부하기' }}
+          <a-button type="primary" class="donate-btn" :style="{background: mainColor, borderColor: mainColor}" @click="openDonationModal" :disabled="post.status === 'COMPLETED' && !isAdmin">
+            <template v-if="post.status === 'COMPLETED' && !isAdmin">마감됨</template>
+            <template v-else-if="isAdmin">기부내역보기</template>
+            <template v-else>기부하기</template>
           </a-button>
         </div>
       </div>
@@ -246,27 +262,16 @@ function proceedToPayment() {
     <!-- 상세 내용 -->
     <div class="desc-section">
       <div class="desc-title">
-        기부금이 <span style="color:#FFC107">곧장</span>
+        모금소개
       </div>
       <div class="desc-box">
         <div class="desc-block" v-html="post.content"></div>
-      </div>
-      <div class="stat-row">
-        <div class="stat-col" v-for="(s, idx) in post.stat" :key="idx">
-          <div class="stat-label">
-            <template v-if="idx === 0">미취학</template>
-            <template v-else-if="idx === 1">초등학교 저학년</template>
-            <template v-else-if="idx === 2">초등학교 고학년</template>
-            <template v-else>중학생 이상</template>
-          </div>
-          <div class="stat-value">{{ s }}</div>
-        </div>
       </div>
     </div>
     <!-- 댓글/한마디 영역 -->
     <div class="comment-section">
       <div class="comment-title">
-        따뜻한 <span style="color:#FFC107;">한마디</span>
+        따뜻한 <span style="color:#00C851;">한마디</span>
       </div>
       <div class="comment-input-row">
         <a-input

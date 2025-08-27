@@ -1,7 +1,7 @@
 <template>
   <div class="my-page">
     <a-row :gutter="24" justify="center">
-      <a-col :xs="24" :sm="6" :md="5" :lg="5" :xl="4">
+      <a-col :xs="24" :sm="5" :md="4" :lg="4" :xl="3">
         <div class="sidebar">
           <ul>
             <li
@@ -16,7 +16,7 @@
         </div>
       </a-col>
 
-      <a-col :xs="24" :sm="18" :md="17" :lg="15" :xl="14">
+      <a-col :xs="24" :sm="19" :md="20" :lg="20" :xl="21">
         <router-view />
       </a-col>
     </a-row>

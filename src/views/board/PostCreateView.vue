@@ -93,10 +93,6 @@ export default {
         message.error('필수 항목을 모두 입력해주세요.')
         return false
       }
-      if (previewImages.value.length === 0) {
-        message.error('최소 1개 이상의 이미지를 등록해야 합니다.')
-        return false
-      }
       if (!form.agreeTerms) {
         message.error('이용약관에 동의해주세요.')
         return false

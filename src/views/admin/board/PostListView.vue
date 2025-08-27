@@ -9,7 +9,8 @@
       </div>
     </div>
 
-    <div class="search-section">
+    <!-- 검색 기능은 현재 백엔드에서 지원하지 않음 -->
+    <!-- <div class="search-section">
       <a-input-search
         v-model:value="searchText"
         placeholder="제목 또는 내용으로 검색"
@@ -18,7 +19,7 @@
         @search="handleSearch"
         class="search-input"
       />
-    </div>
+    </div> -->
 
     <div class="filter-section">
       <div class="filter-row">
@@ -38,7 +39,7 @@
           <a-select-option value="지구촌">지구촌</a-select-option>
           <a-select-option value="사회">사회</a-select-option>
         </a-select>
-        
+
         <a-button @click="toggleDateSort" class="sort-button">
           날짜순 {{ sortOrder === 'desc' ? '↓' : '↑' }}
         </a-button>
@@ -69,6 +70,9 @@
             {{ record.title }}
           </a>
         </template>
+        <template v-else-if="column.key === 'authorName'">
+          {{ record.authorName || '-' }}
+        </template>
         <template v-else-if="column.key === 'createdAt'">
           {{ formatDate(record.createdAt) }}
         </template>
@@ -82,7 +86,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import axios from '@/utils/axios'
 import { useRouter } from 'vue-router'
-
+import { postAPI } from '@/utils/post'
 export default {
   name: 'AdminPostListPage',
   setup() {
@@ -218,14 +222,21 @@ export default {
       fetchPosts()
     }
 
-    const handleMakePublic = () => {
-      if (selectedRowKeys.value.length === 0) {
-        message.warning('공개할 게시글을 선택해주세요.')
-        return
-      }
-      message.success(`${selectedRowKeys.value.length}개 게시글을 전체 공개로 설정했습니다.`)
-      selectedRowKeys.value = []
+    const handleMakePublic = async () => {
+    if (selectedRowKeys.value.length === 0) {
+      message.warning('공개할 게시글을 선택해주세요.')
+      return
     }
+    try {
+      await postAPI.changeVisibilityBulk(selectedRowKeys.value, true)
+      message.success(`${selectedRowKeys.value.length}개 게시글을 전체 공개로 변경했습니다.`)
+      selectedRowKeys.value = []
+      fetchPosts()
+    } catch (e) {
+      console.error('전체 공개 처리 실패:', e)
+      message.error('전체 공개 처리 중 오류가 발생했습니다.')
+    }
+  }
 
     const rowSelection = {
       selectedRowKeys: selectedRowKeys,
@@ -238,7 +249,7 @@ export default {
       try {
         // 게시글 상세 정보 조회
         const response = await axios.get(`/api/posts/${post.id}`)
-        
+
         // 상세 페이지로 이동
         router.push(`/posts/${post.id}`)
       } catch (error) {
@@ -250,30 +261,24 @@ export default {
     const fetchPosts = async () => {
       loading.value = true
       try {
-        const params = {}
-        
-        // 기본값이 아닌 경우에만 파라미터 추가
-        if (pagination.current !== 1) {
-          params.page = pagination.current - 1
+        const params = {
+          limit: pagination.pageSize,
+          page: pagination.current,
+          sortDirection: sortOrder.value.toUpperCase()
         }
-        if (pagination.pageSize !== 10) {
-          params.limit = pagination.pageSize
-        }
-        if (sortOrder.value !== 'desc') {
-          params.sortOrder = sortOrder.value
-        }
+
+        // 카테고리가 선택된 경우에만 추가
         if (selectedCategory.value) {
           params.category = getCategoryEnumValue(selectedCategory.value)
         }
-        if (searchText.value) {
-          params.search = searchText.value
-        }
-        
-        const response = await axios.get('/api/posts/all', { params })
-        
-        posts.value = response.content
-        pagination.total = response.totalElements
-        totalElements.value = response.totalElements
+
+        const response = await axios.get('/api/posts/admin', { params })
+
+        // 백엔드에서 List<PostListResponseDto>를 직접 반환하므로 response가 배열
+        posts.value = Array.isArray(response) ? response : []
+        // 페이지네이션 정보는 별도로 관리하거나 백엔드에서 추가 제공 필요
+        pagination.total = posts.value.length
+        totalElements.value = posts.value.length
       } catch (error) {
         console.error('게시글 목록 조회 실패:', error)
         message.error('게시글 목록을 불러오는데 실패했습니다.')

@@ -124,7 +124,7 @@ const loadInfo = async () => {
   try {
     const user = localStorage.getItem('auth')
     const accessToken = user ? JSON.parse(user).accessToken : null
-    const { data } = await axios.get('/api/info', { headers: { access: accessToken } })
+    const { data } = await axios.get('/api/info', { headers: { Authorization: `Bearer ${accessToken}` } })
     userInfo.email = data.email ?? null
     userInfo.nickname = data.nickname ?? null
     userInfo.pictureUrl = data.pictureUrl ?? null
@@ -175,7 +175,7 @@ const saveAvatar = async () => {
 
     // 실제 엔드포인트로 교체 가능
     await axios.patch('/api/changeimage', fd, {
-      headers: { access: accessToken, 'Content-Type': 'multipart/form-data' }
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'multipart/form-data' }
     })
     message.success('프로필 사진이 저장되었어요.')
     await loadInfo()
@@ -238,7 +238,7 @@ const saveNickname = async () => {
     const user = localStorage.getItem('auth')
     const accessToken = user ? JSON.parse(user).accessToken : null
 
-    // ⚠️ 실제 엔드포인트로 교체하세요. 예: PATCH /api/users/me/nickname
+    // 실제 엔드포인트로 교체하세요. 예: PATCH /api/users/me/nickname
     await axios.patch('/api/editnickname', { newNickname: nickRules.value.trimmed }, {
       headers: { access: accessToken }
     })
@@ -281,7 +281,9 @@ const savePassword = async () => {
   try {
     const user = localStorage.getItem('auth')
     const accessToken = user ? JSON.parse(user).accessToken : null
+
     await axios.patch('/api/editpass', { currentPassword: pw.current, newPassword: pw.new }, { headers: { access: accessToken } })
+
     message.success('비밀번호가 변경되었습니다.')
     resetPw()
   } catch (e) {

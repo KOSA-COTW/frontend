@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
 import { postAPI } from '@/utils/post'
+import { message } from 'ant-design-vue'
 
 const router = useRouter()
 const allNotices = ref([])
@@ -12,7 +13,8 @@ const searchKeyword = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const isLoading = ref(false)
-
+const editImages = ref([])
+const editFileInput = ref(null)
 const auth = useAuthStore()
 const { isAdmin } = storeToRefs(auth)
 
@@ -197,6 +199,28 @@ const goCreate = () => {
   router.push('/notices/create')
 }
 
+const triggerEditFileInput = () => {
+  if (editFileInput.value) {
+    editFileInput.value.click()
+  }
+}
+
+const handleEditFileSelect = (e) => {
+  const files = Array.from(e.target.files || [])
+  files.forEach((file) => {
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      editImages.value.push({ file, url: ev.target.result, name: file.name })
+    }
+    reader.readAsDataURL(file)
+  })
+  e.target.value = ''
+}
+
+const removeEditImage = (idx) => {
+  editImages.value.splice(idx, 1)
+}
+
 // 수정 모달 상태
 const showEditModal = ref(false)
 const editingId = ref(null)
@@ -207,6 +231,7 @@ const openEditModal = (notice) => {
   editingId.value = notice.id
   editTitle.value = notice.title
   editContent.value = notice.content
+  editImages.value = notice.imageUrls ? notice.imageUrls.map((url) => ({ url, name: url })) : []
   showEditModal.value = true
 }
 
@@ -215,24 +240,35 @@ const closeEditModal = () => {
   editingId.value = null
   editTitle.value = ''
   editContent.value = ''
+  editImages.value = []
 }
 
 const saveEdit = async () => {
   try {
+    // 1. 새 파일 업로드
+    const imageUrls = []
+    for (const img of editImages.value) {
+      if (img.file) {
+        const url = await postAPI.uploadImage(img.file) // S3 업로드
+        imageUrls.push(url)
+      } else {
+        imageUrls.push(img.url) // 기존 URL 그대로
+      }
+    }
+
+    // 2. 수정 요청
     await postAPI.updateNotice(editingId.value, {
       title: editTitle.value,
       content: editContent.value,
+      imageUrls,
     })
-    const target = allNotices.value.find((n) => n.id === editingId.value)
-    if (target) {
-      target.title = editTitle.value
-      target.content = editContent.value
-    }
-    alert('수정 완료!')
+
+    message.success('공지사항 수정 완료!')
+    fetchAllNotices()
     closeEditModal()
   } catch (e) {
     console.error('공지 수정 실패:', e)
-    alert('수정 실패')
+    message.error('수정 실패')
   }
 }
 
@@ -293,7 +329,6 @@ const deleteNotice = async (id) => {
           >' 검색 결과: {{ totalCount }}건
         </span>
         <span v-else> 전체 {{ totalCount }}개의 공지사항 </span>
-
       </div>
 
       <!-- 페이지 크기 선택 -->
@@ -336,27 +371,25 @@ const deleteNotice = async (id) => {
         <!-- 본문 영역 -->
         <div v-if="openedId === notice.id" class="notice-content">
           <div class="content-wrapper">
-            {{ notice.content }}
+            <div class="notice-text-content">
+              {{ notice.content }}
+            </div>
+
+            <!-- 이미지 갤러리 -->
+            <div v-if="notice.imageUrls && notice.imageUrls.length > 0" class="notice-images">
+              <img
+                v-for="(img, idx) in notice.imageUrls"
+                :key="idx"
+                :src="img"
+                class="notice-image"
+                alt="공지 이미지"
+              />
+            </div>
+
+            <!-- 관리자만 수정/삭제 -->
             <div v-if="isAdmin" class="admin-actions">
               <button @click.stop="openEditModal(notice)">✏️ 수정</button>
               <button @click.stop="deleteNotice(notice.id)">🗑 삭제</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 수정 모달 -->
-        <div v-if="showEditModal" class="modal-backdrop" @click.self="closeEditModal">
-          <div class="modal">
-            <h2>공지사항 수정</h2>
-            <input v-model="editTitle" class="edit-input" placeholder="제목을 입력하세요" />
-            <textarea
-              v-model="editContent"
-              class="edit-textarea"
-              placeholder="내용을 입력하세요"
-            ></textarea>
-            <div class="modal-actions">
-              <button class="save-btn" @click="saveEdit">💾 저장</button>
-              <button class="cancel-btn" @click="closeEditModal">취소</button>
             </div>
           </div>
         </div>
@@ -368,7 +401,6 @@ const deleteNotice = async (id) => {
       <div class="no-results-icon">📭</div>
       <h3>{{ searchKeyword ? '검색 결과가 없습니다' : '등록된 공지사항이 없습니다' }}</h3>
       <p v-if="searchKeyword">다른 검색어로 다시 시도해보세요.</p>
-      <p v-else>첫 번째 공지사항을 등록해보세요.</p>
     </div>
 
     <!-- 🔹 페이징 -->
@@ -409,6 +441,44 @@ const deleteNotice = async (id) => {
       >
         ≫
       </button>
+    </div>
+
+    <!-- 🔹 수정 모달 (컨테이너 레벨로 이동) -->
+    <div v-if="showEditModal" class="modal-backdrop" @click.self="closeEditModal">
+      <div class="modal">
+        <h2>공지사항 수정</h2>
+        <input v-model="editTitle" class="edit-input" placeholder="제목을 입력하세요" />
+        <textarea
+          v-model="editContent"
+          class="edit-textarea"
+          placeholder="내용을 입력하세요"
+        ></textarea>
+
+        <!-- 이미지 미리보기/삭제 -->
+        <div class="edit-images">
+          <div v-for="(img, idx) in editImages" :key="idx" class="preview-image">
+            <img :src="img.url" :alt="img.name" />
+            <button class="remove-image" @click="removeEditImage(idx)">×</button>
+          </div>
+        </div>
+
+        <!-- 파일 업로드 (숨겨진 input) -->
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          style="display: none"
+          ref="editFileInput"
+          @change="handleEditFileSelect"
+        />
+
+        <button @click="triggerEditFileInput" class="add-image-btn">📷 이미지 추가</button>
+
+        <div class="modal-actions">
+          <button class="save-btn" @click="saveEdit">💾 저장</button>
+          <button class="cancel-btn" @click="closeEditModal">취소</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -839,20 +909,21 @@ const deleteNotice = async (id) => {
     font-size: 0.9rem;
   }
 }
-/* 모달 */
+
+/* 🔹 모달 스타일 */
 .modal-backdrop {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-
-
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
 }
+
 .modal {
   background: white;
   padding: 24px;
@@ -861,11 +932,13 @@ const deleteNotice = async (id) => {
   width: 90%;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
+
 .modal h2 {
   margin-bottom: 16px;
   font-size: 1.2rem;
   font-weight: bold;
 }
+
 .edit-input,
 .edit-textarea {
   width: 100%;
@@ -874,46 +947,117 @@ const deleteNotice = async (id) => {
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 0.95rem;
+  box-sizing: border-box;
 }
+
 .edit-textarea {
   min-height: 120px;
   resize: vertical;
 }
+
+.edit-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.preview-image {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.preview-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-image {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+}
+
+.remove-image:hover {
+  background: rgba(255, 255, 255, 1);
+  color: #333;
+}
+
+.add-image-btn {
+  background: #f1f5f9;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.add-image-btn:hover {
+  background: #e2e8f0;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  margin-top: 16px;
 }
+
 .save-btn {
   background: #10b981;
   color: white;
-  padding: 8px 14px;
+  padding: 8px 16px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 0.9rem;
 }
+
 .save-btn:hover {
   background: #059669;
 }
+
 .cancel-btn {
   background: #e5e7eb;
-  padding: 8px 14px;
+  color: #374151;
+  padding: 8px 16px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  font-size: 0.9rem;
 }
+
 .cancel-btn:hover {
   background: #d1d5db;
 }
+
 .admin-actions {
-  margin-top: 16px; /* 본문과 간격 */
+  margin-top: 16px;
   display: flex;
-  justify-content: flex-end; /* 왼쪽 정렬 */
-  gap: 8px; /* 버튼 사이 간격 */
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .admin-actions button {
-  background: #f1f5f9; /* 연한 배경 */
+  background: #f1f5f9;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   padding: 6px 12px;
@@ -923,6 +1067,55 @@ const deleteNotice = async (id) => {
 }
 
 .admin-actions button:hover {
-  background: #e2e8f0; /* hover 시 약간 진해짐 */
+  background: #e2e8f0;
+}
+
+.notice-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+.notice-image {
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.edit-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.preview-image {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.preview-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.remove-image {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  font-size: 12px;
 }
 </style>
