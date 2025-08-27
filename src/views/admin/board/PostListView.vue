@@ -39,7 +39,7 @@
           <a-select-option value="지구촌">지구촌</a-select-option>
           <a-select-option value="사회">사회</a-select-option>
         </a-select>
-        
+
         <a-button @click="toggleDateSort" class="sort-button">
           날짜순 {{ sortOrder === 'desc' ? '↓' : '↑' }}
         </a-button>
@@ -69,6 +69,9 @@
           <a @click="handlePostClick(record)" class="post-title">
             {{ record.title }}
           </a>
+        </template>
+        <template v-else-if="column.key === 'authorName'">
+          {{ record.authorName || '-' }}
         </template>
         <template v-else-if="column.key === 'createdAt'">
           {{ formatDate(record.createdAt) }}
@@ -239,7 +242,7 @@ export default {
       try {
         // 게시글 상세 정보 조회
         const response = await axios.get(`/api/posts/${post.id}`)
-        
+
         // 상세 페이지로 이동
         router.push(`/posts/${post.id}`)
       } catch (error) {
@@ -256,14 +259,14 @@ export default {
           page: pagination.current,
           sortDirection: sortOrder.value.toUpperCase()
         }
-        
+
         // 카테고리가 선택된 경우에만 추가
         if (selectedCategory.value) {
           params.category = getCategoryEnumValue(selectedCategory.value)
         }
-        
+
         const response = await axios.get('/api/posts/admin', { params })
-        
+
         // 백엔드에서 List<PostListResponseDto>를 직접 반환하므로 response가 배열
         posts.value = Array.isArray(response) ? response : []
         // 페이지네이션 정보는 별도로 관리하거나 백엔드에서 추가 제공 필요
