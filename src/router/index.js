@@ -67,6 +67,16 @@ const router = createRouter({
     // 관리자 라우트
     ...adminRoutes
   ],
+    scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    }
+    // /about 으로 갈 때만 항상 맨 위로
+    if (to.path === '/about') {
+      return { top: 0 }
+    }
+    return {}
+  }
 })
 
 // 네비게이션 가드 - 관리자 권한 체크

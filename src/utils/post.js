@@ -33,24 +33,14 @@ export const postAPI = {
 
   // 전체 공개글
   getAllPublicPosts: async () => {
-    try {
-      const response = await api.get('/api/posts')
-      return response
-    } catch (error) {
-      console.error('[PostAPI] getAllPublicPosts failed:', error)
-      throw error
-    }
+    const response = await api.get('/api/posts')
+    return response
   },
 
   // 단건 조회 (공개/비공개 혼합: 토큰 있으면 함께 보냄)
   getPostById: async (postId) => {
-    try {
-      const response = await api.get(`/api/posts/${postId}`, buildAccessConfig())
-      return response
-    } catch (error) {
-      console.error('[PostAPI] getPostById failed:', error)
-      throw error
-    }
+    const response = await api.get(`/api/posts/${postId}`)
+    return response
   },
 
   // 내가 쓴 글 (인증 필요)
@@ -66,23 +56,14 @@ export const postAPI = {
 
   // 생성
   createPost: async (postData) => {
-    try {
-      const response = await api.post('/api/posts', postData, buildAccessConfig())
-      return response // 서버가 Long id 반환
-    } catch (error) {
-      console.error('[PostAPI] createPost failed:', error)
-      throw error
-    }
+    const response = await api.post('/api/posts', postData)
+    return response
   },
 
   // 수정
   updatePost: async (postId, updateData) => {
     try {
-      const response = await api.patch(
-        `/api/posts/${postId}`,
-        updateData,
-        buildAccessConfig()
-      )
+      const response = await api.patch(`/api/posts/${postId}`, updateData, buildAccessConfig())
       return response
     } catch (error) {
       console.error('[PostAPI] updatePost failed:', error)
@@ -107,7 +88,7 @@ export const postAPI = {
       const response = await api.patch(
         `/api/posts/${postId}/visibility`,
         null,
-        buildAccessConfig({ params: { isPublic } })
+        buildAccessConfig({ params: { isPublic } }),
       )
       return response
     } catch (error) {
@@ -149,7 +130,7 @@ export const postAPI = {
 
   updateNotice: async (id, data) => {
     try {
-      const response = await api.put(`/api/notices/${id}`, data, buildAccessConfig())
+      const response = await api.patch(`/api/notices/${id}`, data, buildAccessConfig())
       return response
     } catch (error) {
       console.error('[PostAPI] updateNotice failed:', error)
@@ -168,18 +149,29 @@ export const postAPI = {
   },
 
   uploadImage: async (file) => {
-  try {
-    const formData = new FormData()
-    formData.append('file', file)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
 
-    const res = await api.post('/api/posts/upload', formData, {
-      ...buildAccessConfig(),
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    return res.url  
-  } catch (error) {
-    console.error('[PostAPI] uploadImage failed:', error)
-    throw error
-  }
-},
+      const res = await api.post('/api/posts/upload', formData, {
+        ...buildAccessConfig(),
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return res.url
+    } catch (error) {
+      console.error('[PostAPI] uploadImage failed:', error)
+      throw error
+    }
+  },
+  changeVisibilityBulk: async (postIds, isPublic) => {
+    try {
+      return await api.patch('/api/posts/visibility', {
+        postIds,
+        isPublic,
+      })
+    } catch (err) {
+      console.error('[PostAPI] changeVisibilityBulk failed:', err)
+      throw err
+    }
+  },
 }

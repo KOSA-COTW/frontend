@@ -145,10 +145,6 @@ onMounted(loadPost)
 // 수정 제출
 const onSubmit = async () => {
   if (!canEdit.value) return
-  if (previewImages.value.length === 0) {
-    message.error('최소 1개 이상의 이미지를 등록해야 합니다.')
-    return
-  }
   submitting.value = true
   try {
     // 1. 새 파일들은 업로드, 기존 URL은 그대로 유지
