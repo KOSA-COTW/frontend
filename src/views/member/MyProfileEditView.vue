@@ -11,7 +11,7 @@
       <template #title>프로필 사진</template>
       <div class="avatar-row">
         <a-avatar :size="80" :src="avatarPreview || userInfo.pictureUrl">
-          {{ userInfo.name ? userInfo.name[0] : '?' }}
+          {{ userInfo.nickname ? userInfo.nickname[0] : '?' }}
         </a-avatar>
 
         <div class="avatar-actions">
@@ -37,6 +37,38 @@
           </div>
         </div>
       </div>
+    </a-card>
+
+    <!-- 닉네임 변경 -->
+    <a-card class="card">
+      <template #title>닉네임 변경</template>
+      <a-form layout="vertical" @submit.prevent="saveNickname">
+        <a-form-item label="현재 닉네임">
+          <a-input :value="originalNickname" disabled />
+        </a-form-item>
+
+        <a-form-item label="새 닉네임" :validate-status="nv.status" :help="nv.help">
+          <a-input
+            v-model:value="nickname"
+            :maxlength="20"
+            show-count
+            placeholder="2~20자, 한/영/숫자/공백/-/_"
+            @input="validateNickname()"
+          />
+        </a-form-item>
+
+        <a-space>
+          <a-button
+            type="primary"
+            html-type="submit"
+            :loading="savingNick"
+            :disabled="!canSubmitNick"
+          >
+            닉네임 저장
+          </a-button>
+          <a-button @click="resetNick" :disabled="savingNick">초기화</a-button>
+        </a-space>
+      </a-form>
     </a-card>
 
     <!-- 비밀번호 변경 -->
@@ -84,10 +116,8 @@ import axios from 'axios'
 
 const router = useRouter()
 
-// ---- 사용자 정보 로드 (아바타 프리뷰용) ----
-const userInfo = reactive({
-  email: null, name: null, pictureUrl: null
-})
+// ---- 사용자 정보 로드 (아바타/닉네임 프리뷰용) ----
+const userInfo = reactive({ email: null, nickname: null, pictureUrl: null })
 const loadingInfo = ref(true)
 
 const loadInfo = async () => {
@@ -96,8 +126,13 @@ const loadInfo = async () => {
     const accessToken = user ? JSON.parse(user).accessToken : null
     const { data } = await axios.get('/api/info', { headers: { access: accessToken } })
     userInfo.email = data.email ?? null
-    userInfo.name = data.name ?? null
+    userInfo.nickname = data.nickname ?? null
     userInfo.pictureUrl = data.pictureUrl ?? null
+
+    // 닉네임 편집 초기화
+    originalNickname.value = userInfo.nickname || ''
+    nickname.value = userInfo.nickname || ''
+    validateNickname()
   } catch (e) {
     message.error('내 정보를 불러오지 못했어요.')
   } finally {
@@ -138,12 +173,11 @@ const saveAvatar = async () => {
     const fd = new FormData()
     fd.append('image', avatarFile.value)
 
-    // ✅ 실제 엔드포인트로 교체 가능
+    // 실제 엔드포인트로 교체 가능
     await axios.patch('/api/changeimage', fd, {
       headers: { access: accessToken, 'Content-Type': 'multipart/form-data' }
     })
     message.success('프로필 사진이 저장되었어요.')
-    // 최신 이미지 반영
     await loadInfo()
     resetAvatar()
   } catch (e) {
@@ -153,58 +187,107 @@ const saveAvatar = async () => {
   }
 }
 
+// ---- 닉네임 변경 ----
+const originalNickname = ref('')
+const nickname = ref('')
+const savingNick = ref(false)
+const nv = reactive({ status: '', help: '' })
+
+const nickRules = computed(() => {
+  const trimmed = nickname.value.trim()
+  const lengthOK = trimmed.length >= 2 && trimmed.length <= 20
+  const patternOK = /^[A-Za-z0-9가-힣 _-]+$/.test(trimmed)
+  const changed = trimmed !== originalNickname.value
+  return { trimmed, lengthOK, patternOK, changed }
+})
+
+const canSubmitNick = computed(() =>
+  nickRules.value.lengthOK && nickRules.value.patternOK && nickRules.value.changed && !savingNick.value
+)
+
+const validateNickname = () => {
+  if (!nickRules.value.lengthOK) {
+    nv.status = 'error'
+    nv.help = '닉네임은 2~20자여야 합니다.'
+    return
+  }
+  if (!nickRules.value.patternOK) {
+    nv.status = 'error'
+    nv.help = '한글/영문/숫자/공백/-/_만 사용할 수 있어요.'
+    return
+  }
+  if (!nickRules.value.changed) {
+    nv.status = ''
+    nv.help = '현재 닉네임과 동일합니다.'
+    return
+  }
+  nv.status = 'success'
+  nv.help = ''
+}
+
+const resetNick = () => {
+  nickname.value = originalNickname.value
+  validateNickname()
+}
+
+const saveNickname = async () => {
+  validateNickname()
+  if (!canSubmitNick.value) return
+  savingNick.value = true
+  try {
+    const user = localStorage.getItem('auth')
+    const accessToken = user ? JSON.parse(user).accessToken : null
+
+    // ⚠️ 실제 엔드포인트로 교체하세요. 예: PATCH /api/users/me/nickname
+    await axios.patch('/api/editnickname', { name: nickRules.value.trimmed }, {
+      headers: { access: accessToken }
+    })
+
+    // 로컬 상태 즉시 반영
+    userInfo.name = nickRules.value.trimmed
+    originalNickname.value = nickRules.value.trimmed
+    message.success('닉네임이 변경되었습니다.')
+    validateNickname()
+  } catch (e) {
+    const msg = e?.response?.data?.message || '닉네임 변경 중 오류가 발생했어요.'
+    message.error(msg)
+  } finally {
+    savingNick.value = false
+  }
+}
+
 // ---- 비밀번호 변경 ----
 const pw = reactive({ current: '', new: '', confirm: '' })
 const savingPw = ref(false)
-const v = reactive({
-  current: { status: '', help: '' },
-  new: { status: '', help: '' },
-  confirm: { status: '', help: '' }
-})
+const v = reactive({ current: { status: '', help: '' }, new: { status: '', help: '' }, confirm: { status: '', help: '' } })
 
-const checks = computed(() => ({
-  length: pw.new.length >= 8,
-  mix: /[A-Za-z]/.test(pw.new) && /\d/.test(pw.new)
-}))
-const canSubmitPw = computed(() =>
-  pw.current && pw.new && pw.confirm && checks.value.length && checks.value.mix && pw.new === pw.confirm
-)
+const checks = computed(() => ({ length: pw.new.length >= 8, mix: /[A-Za-z]/.test(pw.new) && /\d/.test(pw.new) }))
+const canSubmitPw = computed(() => pw.current && pw.new && pw.confirm && checks.value.length && checks.value.mix && pw.new === pw.confirm)
 
 const resetPw = () => {
   pw.current = ''; pw.new = ''; pw.confirm = ''
-  v.current = { status: '', help: '' }
-  v.new = { status: '', help: '' }
-  v.confirm = { status: '', help: '' }
+  v.current = { status: '', help: '' }; v.new = { status: '', help: '' }; v.confirm = { status: '', help: '' }
 }
 
 const savePassword = async () => {
-  // 간단 검증
   v.current = { status: pw.current ? '' : 'error', help: pw.current ? '' : '현재 비밀번호를 입력해 주세요.' }
   v.new = { status: (checks.value.length && checks.value.mix) ? '' : 'error',
     help: (checks.value.length && checks.value.mix) ? '' : '8자 이상, 영문+숫자 조합이어야 합니다.' }
   v.confirm = { status: (pw.confirm === pw.new) ? '' : 'error',
     help: (pw.confirm === pw.new) ? '' : '새 비밀번호가 일치하지 않습니다.' }
-
   if (!canSubmitPw.value) return
 
   savingPw.value = true
   try {
     const user = localStorage.getItem('auth')
     const accessToken = user ? JSON.parse(user).accessToken : null
-
-    // ✅ 변경(change)이므로 PATCH 권장
-    await axios.patch('/api/editpass', {
-      currentPassword: pw.current,
-      newPassword: pw.new
-    }, { headers: { access: accessToken } })
-
+    await axios.patch('/api/editpass', { currentPassword: pw.current, newPassword: pw.new }, { headers: { access: accessToken } })
     message.success('비밀번호가 변경되었습니다.')
     resetPw()
   } catch (e) {
-    const msg =
-      e?.response?.status === 401 || e?.response?.status === 403
-        ? '현재 비밀번호가 올바르지 않습니다.'
-        : e?.response?.data?.message || '변경 처리 중 오류가 발생했습니다.'
+    const msg = (e?.response?.status === 401 || e?.response?.status === 403)
+      ? '현재 비밀번호가 올바르지 않습니다.'
+      : e?.response?.data?.message || '변경 처리 중 오류가 발생했습니다.'
     message.error(msg)
   } finally {
     savingPw.value = false
