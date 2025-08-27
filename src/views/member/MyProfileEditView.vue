@@ -239,7 +239,7 @@ const saveNickname = async () => {
     const accessToken = user ? JSON.parse(user).accessToken : null
 
     // ⚠️ 실제 엔드포인트로 교체하세요. 예: PATCH /api/users/me/nickname
-    await axios.patch('/api/editnickname', { name: nickRules.value.trimmed }, {
+    await axios.patch('/api/editnickname', { newNickname: nickRules.value.trimmed }, {
       headers: { access: accessToken }
     })
 

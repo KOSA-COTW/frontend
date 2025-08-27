@@ -8,7 +8,7 @@
           <div class="top-section">
             <!-- 프로필 -->
             <a-avatar :size="72" :src="userInfo.pictureUrl">
-              {{ userInfo.name ? userInfo.name[0] : '?' }}
+              {{ userInfo.nickname ? userInfo.nickname[0] : '?' }}
             </a-avatar>
 
             <div class="user-info">
