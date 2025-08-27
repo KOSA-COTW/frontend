@@ -94,7 +94,7 @@ const loadInfo = async () => {
   try {
     const user = localStorage.getItem('auth')
     const accessToken = user ? JSON.parse(user).accessToken : null
-    const { data } = await axios.get('/api/info', { headers: { access: accessToken } })
+    const { data } = await axios.get('/api/info', { headers: { Authorization: `Bearer ${accessToken}` } })
     userInfo.email = data.email ?? null
     userInfo.name = data.name ?? null
     userInfo.pictureUrl = data.pictureUrl ?? null
@@ -140,7 +140,7 @@ const saveAvatar = async () => {
 
     // ✅ 실제 엔드포인트로 교체 가능
     await axios.patch('/api/changeimage', fd, {
-      headers: { access: accessToken, 'Content-Type': 'multipart/form-data' }
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'multipart/form-data' }
     })
     message.success('프로필 사진이 저장되었어요.')
     // 최신 이미지 반영
@@ -196,7 +196,7 @@ const savePassword = async () => {
     await axios.patch('/api/editpass', {
       currentPassword: pw.current,
       newPassword: pw.new
-    }, { headers: { access: accessToken } })
+    }, { headers: { Authorization: `Bearer ${accessToken}` } })
 
     message.success('비밀번호가 변경되었습니다.')
     resetPw()

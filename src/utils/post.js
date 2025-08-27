@@ -9,7 +9,7 @@ function buildAccessConfig(extra = {}) {
         ...extra,
         headers: {
           ...(extra.headers || {}),
-          access: token,
+          Authorization: `Bearer ${token}`,
         },
       }
     }
