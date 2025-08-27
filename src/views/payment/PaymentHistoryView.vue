@@ -131,7 +131,7 @@
             type="primary"
             danger
             size="small"
-            @click="cancelPayment(payment.paymentKey || payment.orderId)"
+            @click="cancelPayment(payment.paymentKey)"
             class="cancel-button"
           >
             취소
