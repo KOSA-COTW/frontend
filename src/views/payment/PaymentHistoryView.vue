@@ -112,10 +112,6 @@
             <span class="label">취소일시:</span>
             <span class="value">{{ formatDate(payment.canceledAt) }}</span>
           </div>
-          <div class="detail-row" v-if="payment.cancelReason">
-            <span class="label">취소사유:</span>
-            <span class="value">{{ payment.cancelReason }}</span>
-          </div>
         </div>
 
         <div class="payment-actions" v-if="(payment.status === 'DONE' || payment.status === 'SUCCESS') && payment.status !== 'CANCELED' && !props.adminMode">
