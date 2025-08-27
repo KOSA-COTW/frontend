@@ -17,6 +17,14 @@
           <div class="required-text">* 필수입력</div>
         </a-form-item>
 
+        <a-form-item label="이름" name="name">
+          <a-input v-model:value="formData.name" placeholder="이름을 입력하세요" size="large" />
+        </a-form-item>
+
+        <a-form-item label="별명" name="nickname">
+          <a-input v-model:value="formData.nickname" placeholder="별명을 입력하세요" size="large" />
+        </a-form-item>
+
         <a-form-item label="이메일" name="email">
           <a-input v-model:value="formData.email" placeholder="이메일을 입력하세요" size="large" />
         </a-form-item>
@@ -29,9 +37,6 @@
           <a-input-password v-model:value="formData.confirmPassword" placeholder="비밀번호를 다시 입력하세요" size="large" />
         </a-form-item>
 
-        <a-form-item label="이름" name="name">
-          <a-input v-model:value="formData.name" placeholder="이름을 입력하세요" size="large" />
-        </a-form-item>
 
         <a-card size="small" class="info-card">
           <h3>수집정보</h3>
@@ -85,7 +90,6 @@
 <script setup>
 import { reactive, ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
-import api from 'axios'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 
@@ -98,6 +102,7 @@ const formData = reactive({
   password: '',
   confirmPassword: '',
   name: '',
+  nickname: '',
   agreements: []
 })
 
@@ -172,6 +177,7 @@ const onSubmit = async () => {
   try {
     const payload = {
       name: formData.name,
+      nickname: formData.nickname,
       email: formData.email,
       password: formData.password
     }

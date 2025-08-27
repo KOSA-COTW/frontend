@@ -8,13 +8,13 @@
           <div class="top-section">
             <!-- 프로필 -->
             <a-avatar :size="72" :src="userInfo.pictureUrl">
-              {{ userInfo.name ? userInfo.name[0] : '?' }}
+              {{ userInfo.nickname ? userInfo.nickname[0] : '?' }}
             </a-avatar>
 
             <div class="user-info">
               <div class="header-line">
                 <p class="welcome-text" v-if="userInfo.name">
-                  {{ userInfo.name }}님,<br />
+                  {{ userInfo.nickname }}님,<br />
                   함께한지 <span class="highlight">{{ daysSinceJoined }}</span>일이 되었어요.
                 </p>
                 <div class="badges">
@@ -133,7 +133,7 @@ const auth = useAuthStore()
 const loading = ref(true)
 const inviteCount = ref(0)
 const userInfo = reactive({
-  email: null, name: null, pictureUrl: null, role: null, provider: null, createAt: null, referralCode: null
+  email: null, name: null, nickname: null, pictureUrl: null, role: null, provider: null, createAt: null, referralCode: null
 })
 const stats = reactive({ totalDonation: 0, oneTimeCount: 0, points: 0 })
 
@@ -187,6 +187,7 @@ const information = async () => {
 
     userInfo.email = info.email ?? null
     userInfo.name = info.name ?? null
+    userInfo.nickname = info.nickname ?? info.name
     userInfo.pictureUrl = info.pictureUrl ?? null
     userInfo.role = info.role ?? null
     userInfo.provider = info.provider ?? null
