@@ -8,19 +8,19 @@
 
     <a-row :gutter="[16, 16]" justify="center">
       <a-col :span="10">
-        <a-card title="게시글 조회" hoverable>
-          <p>전체 기부 게시글을 조회하고 관리합니다.</p>
+        <a-card title="게시글 승인 관리" hoverable>
+          <p>승인 대기 중인 기부 게시글을 검토하고 승인/반려할 수 있습니다.</p>
           <a-button type="primary" size="large" block @click="goToPostList">
-            게시글 조회
+            승인 관리
           </a-button>
         </a-card>
       </a-col>
 
       <a-col :span="10">
-        <a-card title="게시글 상태 관리" hoverable>
-          <p>기부 프로젝트의 진행 상태를 관리합니다.</p>
+        <a-card title="전체 게시글 관리" hoverable>
+          <p>모든 기부 게시글을 조회하고 공개/비공개, 삭제 등을 관리합니다.</p>
           <a-button type="primary" size="large" block @click="goToStatusManagement">
-            상태 관리
+            전체 게시글 관리
           </a-button>
         </a-card>
       </a-col>

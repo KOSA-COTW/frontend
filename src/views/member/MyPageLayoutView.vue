@@ -30,6 +30,7 @@ const router = useRouter()
 const menuItems = [
   { label: '내 정보', name: 'mypage.home' },
   { label: '기부내역', name: 'mypage.donations' },
+  { label: '내 게시글', name: 'mypage.posts' },
 ]
 </script>
 

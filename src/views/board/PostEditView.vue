@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePostStore } from '@/stores/post'
 import { useAuthStore } from '@/stores/auth'
 import { postAPI } from '@/utils/post'
+import dayjs from 'dayjs'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,7 +22,7 @@ const form = reactive({
   category: undefined,
   amount: '',
   content: '',
-  deadline: null, // 지금은 보여주기만
+  deadline: null,
   agreeTerms: true,
 })
 
@@ -76,14 +77,6 @@ const canEdit = computed(() => {
   const isAdmin = authData.user?.role === 'ADMIN'
   const authorEmail = post.value?.authorEmail
 
-  // 디버깅용 로그
-  // console.log("[권한체크]", {
-  //   myEmail,
-  //   authorEmail,
-  //   isAdmin,
-  //   authData
-  // })
-
   return isAdmin || (!!authorEmail && !!myEmail && authorEmail === myEmail)
 })
 
@@ -103,7 +96,7 @@ const loadPost = async () => {
     form.category = data.category
     form.amount = data.amount
     form.content = data.content
-    form.deadline = data.deadline
+    form.deadline = data.deadline ? dayjs(data.deadline) : null
 
     if (data.imageUrls?.length) {
       previewImages.value = data.imageUrls.map((url, idx) => ({
@@ -163,7 +156,7 @@ const onSubmit = async () => {
       amount: Number(form.amount),
       content: form.content,
       imageUrls,
-      // deadline 제외
+      deadline: form.deadline ? form.deadline.format('YYYY-MM-DD') : null
     }
     await postStore.updatePost(postId, payload)
     message.success('글이 성공적으로 수정되었습니다!')
@@ -247,9 +240,14 @@ const categories = [
           </a-col>
         </a-row>
 
-        <!-- 마감일 (수정 불가, 표시만) -->
-        <a-form-item label="기부 마감일" name="deadline">
-          <a-input v-model:value="form.deadline" size="large" disabled />
+        <!-- 마감일 (수정 가능) -->
+        <a-form-item label="기부 마감일" name="deadline" required>
+          <a-date-picker
+            v-model:value="form.deadline"
+            style="width: 100%"
+            size="large"
+            :disabled-date="(current) => current && current < Date.now()"
+          />
         </a-form-item>
 
         <!-- 내용 -->

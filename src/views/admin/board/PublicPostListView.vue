@@ -1,525 +1,483 @@
 <template>
-  <div class="post-list-container">
+  <div class="all-posts">
+    <!-- 헤더 + 통계 -->
     <div class="header">
-      <h1 class="page-title">기부 프로젝트</h1>
-      <div class="header-actions">
-        <a-button type="primary" @click="handleWrite" class="write-button">
-          기부 프로젝트 등록
-        </a-button>
+      <h2>전체 게시글 관리</h2>
+      <div class="stats">
+        <span>총 {{ totalPosts }}개의 게시글</span>
+        <span class="divider">|</span>
+        <span style="color: #00c851">공개 {{ countStatus('APPROVED') }}개</span>
+        <span class="divider">|</span>
+        <span style="color: #ff4d4f">비공개 {{ countStatus('PRIVATE') }}개</span>
+        <span class="divider">|</span>
+        <span style="color: #faad14">승인 대기 {{ countStatus('PENDING') }}개</span>
+        <span class="divider">|</span>
+        <span style="color: #8c8c8c">반려됨 {{ countStatus('REJECTED') }}개</span>
       </div>
     </div>
 
-    <div class="search-section">
+    <!-- 상태 탭 -->
+    <a-tabs v-model:activeKey="activeStatusTab" @change="handleTabChange" class="status-tabs">
+      <a-tab-pane key="ALL" tab="전체" />
+      <a-tab-pane key="APPROVED" tab="공개" />
+      <a-tab-pane key="PRIVATE" tab="비공개" />
+      <a-tab-pane key="PENDING" tab="승인 대기" />
+      <a-tab-pane key="REJECTED" tab="반려됨" />
+    </a-tabs>
+
+    <!-- 검색 & 정렬 -->
+    <div class="search-bar">
       <a-input-search
-        v-model:value="searchText"
-        placeholder="제목 또는 내용으로 검색"
+        v-model:value="searchKeyword"
+        placeholder="제목, 작성자 검색"
+        allow-clear
         enter-button="검색"
-        size="large"
-        @search="handleSearch"
-        class="search-input"
+        style="max-width: 400px"
       />
+      <a-select v-model:value="sortBy" style="width: 180px; margin-left:auto">
+        <a-select-option value="createdAt-desc"> 최신순</a-select-option>
+        <a-select-option value="createdAt-asc"> 오래된순</a-select-option>
+        <a-select-option value="title-asc"> 제목순(가나다)</a-select-option>
+        <a-select-option value="title-desc"> 제목순(다나가)</a-select-option>
+      </a-select>
     </div>
 
-    <div class="filter-section">
-      <div class="filter-row">
-        <a-select
-          v-model:value="selectedCategory"
-          placeholder="카테고리 선택"
-          style="width: 200px; margin-right: 16px"
-          @change="handleCategoryChange"
-          allowClear
-        >
-          <a-select-option value="">전체</a-select-option>
-          <a-select-option value="아동">아동</a-select-option>
-          <a-select-option value="장애인">장애인</a-select-option>
-          <a-select-option value="어르신">어르신</a-select-option>
-          <a-select-option value="동물">동물</a-select-option>
-          <a-select-option value="환경">환경</a-select-option>
-          <a-select-option value="지구촌">지구촌</a-select-option>
-          <a-select-option value="사회">사회</a-select-option>
-        </a-select>
-
-        <a-button @click="toggleDateSort" class="sort-button">
-          날짜순 {{ sortOrder === 'desc' ? '↓' : '↑' }}
-        </a-button>
+    <!-- 필터 패널 -->
+    <a-card class="filter-panel" size="small">
+      <template #title>🔎 필터</template>
+      <div class="filter-grid">
+        <div class="filter-item">
+          <label>카테고리</label>
+          <a-select v-model:value="filterCategory" allow-clear placeholder="전체" class="category-select">
+            <a-select-option value="아동">아동</a-select-option>
+            <a-select-option value="장애인">장애인</a-select-option>
+            <a-select-option value="동물">동물</a-select-option>
+            <a-select-option value="환경">환경</a-select-option>
+            <a-select-option value="지구촌">지구촌</a-select-option>
+            <a-select-option value="어르신">어르신</a-select-option>
+            <a-select-option value="사회">사회</a-select-option>
+          </a-select>
+        </div>
+        <div class="filter-item">
+          <label>작성일</label>
+          <a-range-picker v-model:value="filterDateRange" style="width:100%" />
+        </div>
       </div>
-    </div>
 
+      <div style="margin-top:12px; text-align:right">
+        <a-button @click="resetFilters" :disabled="!hasActiveFilters">↩️ 초기화</a-button>
+      </div>
+    </a-card>
+
+    <!-- 테이블 -->
     <a-table
-      :columns="columns"
-      :data-source="posts"
-      :pagination="pagination"
+      :data-source="displayPosts"
       :loading="loading"
       row-key="id"
+      bordered
+      :pagination="paginationConfig"
+      :scroll="{ x: 1100 }"
+      style="margin-top: 16px"
       @change="handleTableChange"
-      class="post-table"
     >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.key === 'id'">
-          {{ record.id }}
+      <a-table-column title="#" key="index" width="60" align="center">
+        <template #default="{ index }">
+          {{ (currentPage - 1) * pageSize + index + 1 }}
         </template>
-        <template v-else-if="column.key === 'category'">
-          <a-tag :color="getCategoryColor(record.category)">
-            {{ getCategoryDisplayName(record.category) }}
+      </a-table-column>
+
+<!-- 제목 및 달성률 -->
+<a-table-column title="제목 및 달성률" key="title-progress" :ellipsis="true">
+  <template #default="{ record }">
+    <div class="title-progress">
+      <!-- 제목 -->
+      <div class="title-link" @click="viewPost(record.id)">
+        <a-tooltip :title="record.title" placement="topLeft">
+          <span>{{ record.title }}</span>
+        </a-tooltip>
+      </div>
+
+      <!-- 달성률 -->
+      <div class="progress-section">
+        <a-progress
+          :percent="record.percent"
+          size="small"
+          :status="record.percent >= 100 ? 'success' : 'active'"
+          :show-info="false"
+        />
+        <div class="progress-text">
+          <span class="raised">{{ record.currentAmount.toLocaleString() }}원</span>
+          /
+          <span class="goal">{{ record.amount.toLocaleString() }}원</span>
+          <span class="percent"> ({{ record.percentRaw }}%)</span>
+        </div>
+      </div>
+    </div>
+  </template>
+</a-table-column>
+
+
+      <a-table-column title="작성자" key="authorName" width="160" align="center">
+        <template #default="{ record }">
+          <a-tooltip :title="record.authorEmail">
+            <span>{{ record.authorName }}</span>
+          </a-tooltip>
+        </template>
+      </a-table-column>
+
+      <a-table-column title="카테고리" dataIndex="category" key="category" width="120" align="center">
+        <template #default="{ record }">
+          <a-tag color="blue">{{ record.category }}</a-tag>
+        </template>
+      </a-table-column>
+
+      <a-table-column title="상태" key="visibilityStatus" width="120" align="center">
+        <template #default="{ record }">
+          <a-tooltip v-if="record.visibilityStatus === 'REJECTED' && record.rejectionReason"
+                     :title="'반려 사유: ' + record.rejectionReason">
+            <a-tag :color="getStatusTag(record.visibilityStatus).color">
+              {{ getStatusTag(record.visibilityStatus).label }}
+            </a-tag>
+          </a-tooltip>
+          <a-tag v-else :color="getStatusTag(record.visibilityStatus).color">
+            {{ getStatusTag(record.visibilityStatus).label }}
           </a-tag>
         </template>
-        <template v-else-if="column.key === 'title'">
-          <div class="title-section">
-            <a @click="handlePostClick(record)" class="post-title">
-              {{ record.title }}
-            </a>
-            <div class="progress-section">
-              <a-progress
-                :percent="getAchievementRate(record)"
-                :show-info="false"
-                size="small"
-                stroke-color="#00C851"
-              />
-              <div class="progress-text">
-                <span class="current-amount">{{ formatMoney(record.currentAmount) }}</span>
-                <span class="divider">/</span>
-                <span class="target-amount">{{ formatMoney(record.amount) }}</span>
-                <span class="percentage">({{ getAchievementRate(record) }}%)</span>
-              </div>
-            </div>
-          </div>
+      </a-table-column>
+
+      <a-table-column title="작성일" dataIndex="createdAt" key="createdAt" width="140" align="center">
+        <template #default="{ record }">
+          <a-tooltip :title="formatFullDate(record.createdAt)">
+            {{ formatDate(record.createdAt) }}
+          </a-tooltip>
         </template>
-        <template v-else-if="column.key === 'authorName'">
-          {{ record.authorName || '-' }}
+      </a-table-column>
+
+      <!-- 작업 -->
+      <a-table-column title="작업" key="actions" width="120" align="center" fixed="right">
+        <template #default="{ record }">
+          <a-dropdown trigger="click">
+            <a-button type="text" size="small">⋮</a-button>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item @click="changeStatus(record.id, 'APPROVED')">✅ 공개</a-menu-item>
+                <a-menu-item @click="changeStatus(record.id, 'PRIVATE')">🔒 비공개</a-menu-item>
+                <a-menu-item @click="changeStatus(record.id, 'PENDING')">🕒 승인 대기</a-menu-item>
+                <a-menu-item @click="openRejectModal(record.id)">❌ 반려</a-menu-item>
+                <a-menu-divider />
+                <a-menu-item danger>
+                  <a-popconfirm
+                    title="정말 삭제하시겠습니까?"
+                    ok-text="삭제"
+                    cancel-text="취소"
+                    @confirm="deletePost(record.id)"
+                  >
+                    🗑️ 삭제
+                  </a-popconfirm>
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
         </template>
-        <template v-else-if="column.key === 'createdAt'">
-          {{ formatDate(record.createdAt) }}
-        </template>
-      </template>
+      </a-table-column>
     </a-table>
+
+    <!-- 반려 모달 -->
+    <a-modal
+      v-model:open="rejectModalVisible"
+      title="게시글 반려"
+      ok-text="반려"
+      cancel-text="취소"
+      @ok="confirmReject"
+    >
+      <p>반려 사유를 입력해주세요:</p>
+      <a-textarea v-model:value="rejectReason" rows="4" />
+    </a-modal>
+
+    <!-- 빈 상태 -->
+    <div v-if="!loading && displayPosts.length === 0" class="empty-state">
+      <div class="empty-icon">📋</div>
+      <div class="empty-text">
+        조건에 맞는 게시글이 없습니다.<br />
+        <a @click="resetFilters">초기화</a> 후 다시 시도해보세요.
+      </div>
+    </div>
   </div>
 </template>
 
-<script>
-import { ref, reactive, computed, onMounted } from 'vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import axios from '@/utils/axios'
 import { useRouter } from 'vue-router'
 
-export default {
-  name: 'PublicPostListView',
-  components: {
-    PlusOutlined
-  },
-  setup() {
-    const router = useRouter()
-    const loading = ref(false)
-    const searchText = ref('')
-    const selectedCategory = ref('')
-    const sortOrder = ref('desc') // 'desc' 또는 'asc'
+const router = useRouter()
+const posts = ref([])
+const loading = ref(false)
 
-    const pagination = reactive({
-      current: 1,
-      pageSize: 10,
-      total: 0,
-      showSizeChanger: true,
-      showQuickJumper: true,
-      pageSizeOptions: ['10', '20', '50'],
-      showTotal: (total, range) => `${range[0]}-${range[1]} / 총 ${total}개`,
-      hideOnSinglePage: false
-    })
+const searchKeyword = ref('')
+const sortBy = ref('createdAt-desc')
+const filterCategory = ref(null)
+const filterDateRange = ref([])
+const activeStatusTab = ref('ALL')
 
-    const columns = [
-      {
-        title: 'ID',
-        key: 'id',
-        dataIndex: 'id',
-        width: 80,
-        align: 'center'
-      },
-      {
-        title: '카테고리',
-        dataIndex: 'category',
-        key: 'category',
-        width: 120,
-        align: 'center'
-      },
-      {
-        title: '제목 및 달성률',
-        dataIndex: 'title',
-        key: 'title',
-        ellipsis: true,
-        width: '40%'
-      },
-      {
-        title: '글쓴이',
-        dataIndex: 'authorName',
-        key: 'authorName',
-        width: 120,
-        align: 'center'
-      },
-      {
-        title: '날짜',
-        dataIndex: 'createdAt',
-        key: 'createdAt',
-        width: 120,
-        align: 'center'
-      }
-    ]
+const currentPage = ref(1)
+const pageSize = ref(10)
 
-    const posts = ref([])
-    const totalElements = ref(0)
+// 반려 모달 상태
+const rejectModalVisible = ref(false)
+const rejectReason = ref('')
+const targetPostId = ref(null)
 
-
-    const getCategoryDisplayName = (category) => {
-      const categoryMap = {
-        'CHILD': '아동',
-        'DISABLED': '장애인',
-        'SENIOR': '어르신',
-        'ANIMAL': '동물',
-        'ENVIRONMENT': '환경',
-        'GLOBAL': '지구촌',
-        'SOCIETY': '사회'
-      }
-      return categoryMap[category] || category
-    }
-
-    const getCategoryEnumValue = (displayName) => {
-      const enumMap = {
-        '아동': 'CHILD',
-        '장애인': 'DISABLED',
-        '어르신': 'SENIOR',
-        '동물': 'ANIMAL',
-        '환경': 'ENVIRONMENT',
-        '지구촌': 'GLOBAL',
-        '사회': 'SOCIETY'
-      }
-      return enumMap[displayName] || displayName
-    }
-
-    const getCategoryColor = (category) => {
-      const displayName = getCategoryDisplayName(category)
-      const colors = {
-        '아동': '#00C851',
-        '장애인': '#b6e6fb',
-        '어르신': '#bada55',
-        '동물': '#ee9120',
-        '환경': '#205dee',
-        '지구촌': '#2db7f5',
-        '사회': '#fbb6b7'
-      }
-      return colors[displayName] || '#00C851'
-    }
-
-    const formatDate = (dateString) => {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      })
-    }
-
-    const formatMoney = (amount) => {
-      return new Intl.NumberFormat('ko-KR').format(amount) + '원'
-    }
-
-    const getAchievementRate = (record) => {
-      const rate = Math.round((record.currentAmount / record.amount) * 100)
-      return Math.min(rate, 100) // 100% 초과하지 않도록
-    }
-
-    const fetchPosts = async () => {
-      loading.value = true
-      try {
-        const params = {}
-
-        // 기본값이 아닌 경우에만 파라미터 추가
-        if (pagination.current !== 1) {
-          params.page = pagination.current - 1
-        }
-        if (pagination.pageSize !== 10) {
-          params.limit = pagination.pageSize
-        }
-        if (sortOrder.value !== 'desc') {
-          params.sortOrder = sortOrder.value
-        }
-        if (selectedCategory.value) {
-          params.category = getCategoryEnumValue(selectedCategory.value)
-        }
-        if (searchText.value) {
-          params.search = searchText.value
-        }
-
-        const response = await axios.get('/api/posts/admin/public', { params })
-
-        // 백엔드에서 List<PostListResponseDto>를 직접 반환하므로 response가 배열
-        posts.value = Array.isArray(response) ? response : []
-        // 페이지네이션 정보는 별도로 관리하거나 백엔드에서 추가 제공 필요
-        pagination.total = posts.value.length
-        totalElements.value = posts.value.length
-      } catch (error) {
-        console.error('게시글 목록 조회 실패:', error)
-        message.error('게시글 목록을 불러오는데 실패했습니다.')
-      } finally {
-        loading.value = false
-      }
-    }
-
-    const handleSearch = (value) => {
-      searchText.value = value
-      pagination.current = 1
-      fetchPosts()
-    }
-
-    const handleCategoryChange = () => {
-      pagination.current = 1
-      fetchPosts()
-    }
-
-    const handleTableChange = (pag) => {
-      pagination.current = pag.current
-      pagination.pageSize = pag.pageSize
-      fetchPosts()
-    }
-
-    const toggleDateSort = () => {
-      sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
-      pagination.current = 1
-      fetchPosts()
-    }
-
-    const handleWrite = () => {
-      message.success('기부 프로젝트 등록 페이지로 이동')
-    }
-
-    const handlePostClick = async (post) => {
-      try {
-        // 게시글 상세 정보 조회
-        const response = await axios.get(`/api/posts/${post.id}`)
-
-        // 상세 페이지로 이동
-        router.push(`/posts/${post.id}`)
-      } catch (error) {
-        console.error('게시글 조회 실패:', error)
-        message.error('게시글을 불러오는데 실패했습니다.')
-      }
-    }
-
-    onMounted(() => {
-      fetchPosts()
-    })
-
-    return {
-      loading,
-      searchText,
-      selectedCategory,
-      sortOrder,
-      pagination,
-      columns,
-      posts,
-      getCategoryDisplayName,
-      getCategoryColor,
-      formatDate,
-      formatMoney,
-      getAchievementRate,
-      handleSearch,
-      handleCategoryChange,
-      handleTableChange,
-      toggleDateSort,
-      handleWrite,
-      handlePostClick,
-      fetchPosts
-    }
+const fetchAllPosts = async () => {
+  loading.value = true
+  try {
+    const res = await axios.get('/api/admin/posts')
+    posts.value = Array.isArray(res) ? res : res.data
+  } catch (e) {
+    console.error('전체 게시글 불러오기 실패:', e)
+    message.error('전체 게시글을 불러오는 중 오류가 발생했습니다.')
+  } finally {
+    loading.value = false
   }
 }
+
+// 상태 변경
+const changeStatus = async (postId, status) => {
+  try {
+    await axios.patch('/api/admin/posts/status', { postIds: [postId], status })
+    message.success(`게시글 상태가 '${status}'로 변경되었습니다.`)
+    fetchAllPosts()
+  } catch (e) {
+    console.error('상태 변경 실패:', e)
+    message.error('상태 변경 중 오류가 발생했습니다.')
+  }
+}
+
+// 반려 모달 열기
+const openRejectModal = (postId) => {
+  targetPostId.value = postId
+  rejectReason.value = ''
+  rejectModalVisible.value = true
+}
+
+// 반려 확정
+const confirmReject = async () => {
+  if (!rejectReason.value.trim()) {
+    message.warning('반려 사유를 입력해주세요.')
+    return
+  }
+  try {
+    await axios.patch('/api/admin/posts/status', {
+      postIds: [targetPostId.value],
+      status: 'REJECTED',
+      rejectionReason: rejectReason.value,
+    })
+    message.info('게시글이 반려되었습니다.')
+    rejectModalVisible.value = false
+    fetchAllPosts()
+  } catch (e) {
+    console.error('반려 실패:', e)
+    message.error('반려 처리 중 오류가 발생했습니다.')
+  }
+}
+
+// 삭제
+const deletePost = async (postId) => {
+  try {
+    await axios.delete(`/api/admin/posts/${postId}`)
+    message.success('게시글이 삭제되었습니다.')
+    fetchAllPosts()
+  } catch (e) {
+    console.error('삭제 실패:', e)
+    message.error('게시글 삭제 중 오류가 발생했습니다.')
+  }
+}
+
+// ====== 필터/정렬/검색 로직 ======
+const countStatus = (status) => posts.value.filter(p => p.visibilityStatus === status).length
+const filteredPosts = computed(() => {
+  let result = [...posts.value]
+  if (searchKeyword.value) {
+    result = result.filter(
+      (p) =>
+        p.title?.includes(searchKeyword.value) ||
+        p.authorName?.includes(searchKeyword.value)
+    )
+  }
+  if (filterCategory.value) {
+    result = result.filter((p) => p.category === filterCategory.value)
+  }
+  if (activeStatusTab.value !== 'ALL') {
+    result = result.filter((p) => p.visibilityStatus === activeStatusTab.value)
+  }
+  if (filterDateRange.value?.length === 2) {
+    const [start, end] = filterDateRange.value
+    result = result.filter((p) => {
+      const createdAt = new Date(p.createdAt)
+      return createdAt >= new Date(start) && createdAt <= new Date(end)
+    })
+  }
+  return result
+})
+const sortedPosts = computed(() => {
+  const result = [...filteredPosts.value]
+  const [field, order] = sortBy.value.split('-')
+  result.sort((a, b) => {
+    let valueA = a[field]
+    let valueB = b[field]
+    if (field === 'createdAt') {
+      valueA = new Date(valueA)
+      valueB = new Date(valueB)
+    } else if (field === 'title') {
+      valueA = valueA?.toLowerCase?.() ?? ''
+      valueB = valueB?.toLowerCase?.() ?? ''
+    }
+    return order === 'asc' ? (valueA > valueB ? 1 : -1) : valueA < valueB ? 1 : -1
+  })
+  return result
+})
+const displayPosts = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return sortedPosts.value.slice(start, start + pageSize.value)
+})
+const handleTableChange = (pagination) => {
+  currentPage.value = pagination.current
+  pageSize.value = pagination.pageSize
+}
+const totalPosts = computed(() => posts.value.length)
+const paginationConfig = computed(() => ({
+  current: currentPage.value,
+  pageSize: pageSize.value,
+  total: sortedPosts.value.length,
+  showSizeChanger: true,
+  showQuickJumper: true,
+  showTotal: (total, range) => `${range[0]}-${range[1]} / 총 ${total}개`,
+  pageSizeOptions: ['5', '10', '20', '50'],
+  size: 'default',
+}))
+const resetFilters = () => {
+  searchKeyword.value = ''
+  filterCategory.value = null
+  filterDateRange.value = []
+  sortBy.value = 'createdAt-desc'
+  currentPage.value = 1
+  activeStatusTab.value = 'ALL'
+}
+const hasActiveFilters = computed(
+  () =>
+    searchKeyword.value ||
+    filterCategory.value ||
+    (filterDateRange.value?.length === 2) ||
+    sortBy.value !== 'createdAt-desc' ||
+    activeStatusTab.value !== 'ALL'
+)
+
+// ====== Utils ======
+const formatDate = (dateString) =>
+  new Date(dateString).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+const formatFullDate = (dateString) => new Date(dateString).toLocaleString('ko-KR')
+const getStatusTag = (status) => {
+  switch (status) {
+    case 'APPROVED': return { color: 'green', label: '공개' }
+    case 'PRIVATE': return { color: 'red', label: '비공개' }
+    case 'PENDING': return { color: 'orange', label: '승인 대기' }
+    case 'REJECTED': return { color: 'gray', label: '반려됨' }
+    default: return { color: 'default', label: status }
+  }
+}
+const viewPost = (postId) => router.push({ name: 'postDetail', params: { id: postId } })
+const setTab = (key) => { activeStatusTab.value = key; currentPage.value = 1 }
+const handleTabChange = () => { currentPage.value = 1 }
+watch([searchKeyword, filterCategory, filterDateRange, sortBy], () => (currentPage.value = 1))
+onMounted(fetchAllPosts)
 </script>
 
 <style scoped>
-.post-list-container {
-  padding: 24px;
-  background: #fff;
-  min-height: 100vh;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #f0f0f0;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: bold;
-  color: #262626;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.write-button {
-  background-color: #00C851;
-  border-color: #00C851;
-  font-weight: 500;
-  height: 40px;
-  padding: 0 20px;
-}
-
-.write-button:hover,
-.write-button:focus {
-  background-color: #00A844;
-  border-color: #00A844;
-}
-
-.sort-button {
-  background-color: #f0f0f0;
-  border-color: #d9d9d9;
-  color: #262626;
-  font-weight: 500;
-}
-
-.sort-button:hover,
-.sort-button:focus {
-  background-color: #00C851;
-  border-color: #00C851;
-  color: white;
-}
-
-.search-section {
-  margin-bottom: 16px;
-}
-
-.search-input {
-  max-width: 400px;
-}
-
-.search-input .ant-btn-primary {
-  background-color: #00C851;
-  border-color: #00C851;
-}
-
-.search-input .ant-btn-primary:hover,
-.search-input .ant-btn-primary:focus {
-  background-color: #00A844;
-  border-color: #00A844;
-}
-
-.filter-section {
-  margin-bottom: 20px;
-}
-
-.filter-row {
-  display: flex;
-  align-items: center;
-}
-
-.post-table {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.post-table .ant-table-thead > tr > th {
-  background-color: #fafafa;
-  font-weight: 600;
-  color: #262626;
-  border-bottom: 2px solid #00C851;
-}
-
-.post-table .ant-table-tbody > tr:hover > td {
-  background-color: #f6ffed;
-}
-
-.title-section {
+.all-posts { padding: 24px; background: #fff; min-height: 100vh; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f0; }
+.header h2 { margin: 0; font-size: 24px; color: #262626; }
+.stats { display: flex; align-items: center; font-size: 14px; color: #666; }
+.divider { margin: 0 12px; color: #d9d9d9; }
+.search-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.filter-panel { margin-bottom: 12px; }
+.filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.filter-item label { display: block; font-size: 12px; margin-bottom: 4px; color: #666; }
+.title-link { cursor: pointer; color: #1890ff; }
+.title-link:hover { color: #40a9ff; }
+.row-actions { display: flex; gap: 4px; justify-content: center; }
+.empty-state { text-align: center; padding: 60px 20px; color: #999; }
+.empty-icon { font-size: 48px; margin-bottom: 16px; }
+.category-select { width: 140px; }
+.title-progress {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
-.post-title {
-  color: #262626;
-  text-decoration: none;
+.title-link {
+  cursor: pointer;
   font-weight: 500;
-  line-height: 1.4;
+  color: #1890ff;
 }
-
-.post-title:hover {
-  color: #00C851;
-  text-decoration: underline;
+.title-link:hover {
+  color: #40a9ff;
 }
 
 .progress-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .progress-text {
+  font-size: 13px;
+  color: #555;
+}
+.progress-text .raised {
+  color: #00c851; /* 현재 모금액 강조 */
+  font-weight: 600;
+}
+.progress-text .goal {
+  color: #999;
+}
+.progress-text .percent {
+  color: #00c851;
+  font-weight: 500;
+}
+.title-progress {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #666;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.current-amount {
+.title-link {
+  cursor: pointer;
+  font-weight: 500;
+  color: #1890ff;
+}
+.title-link:hover {
+  color: #40a9ff;
+}
+
+.progress-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.progress-text {
+  font-size: 13px;
+  color: #555;
+}
+.progress-text .raised {
+  color: #00c851; /* 현재 모금액 강조 */
   font-weight: 600;
-  color: #00C851;
+}
+.progress-text .goal {
+  color: #999;
+}
+.progress-text .percent {
+  color: #00c851;
+  font-weight: 500;
 }
 
-.target-amount {
-  color: #888;
-}
-
-.percentage {
-  font-weight: 600;
-  color: #00C851;
-}
-
-.divider {
-  color: #ccc;
-}
-
-.ant-pagination {
-  margin-top: 24px;
-  text-align: center;
-}
-
-.ant-pagination .ant-pagination-item-active {
-  border-color: #00C851;
-}
-
-.ant-pagination .ant-pagination-item-active a {
-  color: #00C851;
-}
-
-.ant-pagination .ant-pagination-item:hover {
-  border-color: #00C851;
-}
-
-.ant-pagination .ant-pagination-item:hover a {
-  color: #00C851;
-}
-
-.ant-pagination .ant-pagination-prev:hover .ant-pagination-item-link,
-.ant-pagination .ant-pagination-next:hover .ant-pagination-item-link {
-  color: #00C851;
-  border-color: #00C851;
-}
-
-.ant-select-focused .ant-select-selector,
-.ant-select-selector:focus,
-.ant-select-selector:active,
-.ant-select-open .ant-select-selector {
-  border-color: #00C851;
-  box-shadow: 0 0 0 2px rgba(0, 200, 81, 0.2);
-}
-
-.ant-input:focus,
-.ant-input-focused {
-  border-color: #00C851;
-  box-shadow: 0 0 0 2px rgba(0, 200, 81, 0.2);
-}
 </style>

@@ -35,11 +35,13 @@ const router = createRouter({
     },
     {
       path: '/mypage',
+      name: 'mypage',
       component: () => import('@/views/member/MyPageLayoutView.vue'),
       children: [
         { path: '', name: 'mypage.home', component: () => import('@/views/member/MyPageView.vue') },
         { path: 'edit', name: 'mypage.edit', component: () => import('@/views/member/MyProfileEditView.vue') },
         { path: 'donations', name: 'mypage.donations', component: () => import('@/views/payment/PaymentHistoryView.vue') },
+        { path: 'posts', name: 'mypage.posts', component: () => import('@/views/board/MyPostsView.vue') },
         // { path: 'points', name: 'mypage.points', component: () => import('@/views/member/PointHistoryView.vue') },
       ]
     },

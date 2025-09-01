@@ -105,7 +105,7 @@ const saveEdit = async () => {
     await postAPI.updateNotice(editingId.value, {
       title: editTitle.value,
       content: editContent.value,
-      imageUrls
+      imageUrls,
     })
 
     message.success('공지사항 수정 완료!')
@@ -116,7 +116,6 @@ const saveEdit = async () => {
     message.error('수정 실패')
   }
 }
-
 </script>
 
 <template>
@@ -187,7 +186,7 @@ const saveEdit = async () => {
         <!-- 버튼 영역 -->
         <div class="action-buttons">
           <a-button type="primary" size="large" @click="onSubmit" :loading="submitting">
-            등록하기
+            글 작성하기
           </a-button>
         </div>
       </a-form>
