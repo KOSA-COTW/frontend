@@ -283,11 +283,26 @@ const deleteNotice = async (id) => {
     alert('삭제 실패')
   }
 }
+const togglePin = async (notice) => {
+  try {
+    const newStatus = !notice.isPinned
+    await postAPI.updateNotice(notice.id, {
+      ...notice,
+      isPinned: newStatus,
+    })
+    notice.isPinned = newStatus // UI 갱신
+    message.success(newStatus ? '상단 고정됨' : '고정 해제됨')
+  } catch (e) {
+    console.error('공지 고정 토글 실패:', e)
+    message.error('실패했습니다')
+  }
+}
+
 </script>
 
 <template>
   <div class="notice-container">
-    <!-- 🔹 상단 헤더 -->
+    <!-- 상단 헤더 -->
     <div class="notice-header">
       <p class="notice-subtitle">공지사항</p>
       <h1>COTW에서<br />빠르게 새로운 소식을 전합니다.</h1>
@@ -321,7 +336,7 @@ const deleteNotice = async (id) => {
       </div>
     </div>
 
-    <!-- 🔹 검색 결과 정보 -->
+    <!-- 검색 결과 정보 -->
     <div class="search-info" v-if="!isLoading">
       <div class="result-count">
         <span v-if="searchKeyword">
@@ -334,7 +349,6 @@ const deleteNotice = async (id) => {
       <!-- 페이지 크기 선택 -->
       <div class="page-size-selector">
         <select v-model="pageSize" class="page-size-select">
-          <option value="5">5개씩</option>
           <option value="10">10개씩</option>
           <option value="20">20개씩</option>
           <option value="50">50개씩</option>
@@ -342,13 +356,13 @@ const deleteNotice = async (id) => {
       </div>
     </div>
 
-    <!-- 🔹 로딩 상태 -->
+    <!-- 로딩 상태 -->
     <div v-if="isLoading" class="loading">
       <div class="spinner"></div>
       <p>공지사항을 불러오는 중...</p>
     </div>
 
-    <!-- 🔹 공지 리스트 -->
+    <!-- 공지 리스트 -->
     <div v-else-if="paginatedNotices.length > 0" class="notice-list">
       <div
         v-for="(notice, idx) in paginatedNotices"
@@ -388,6 +402,9 @@ const deleteNotice = async (id) => {
 
             <!-- 관리자만 수정/삭제 -->
             <div v-if="isAdmin" class="admin-actions">
+              <button @click.stop="togglePin(notice)">
+                {{ notice.isPinned ? '📌 고정 해제' : '📌 상단 고정' }}
+              </button>
               <button @click.stop="openEditModal(notice)">✏️ 수정</button>
               <button @click.stop="deleteNotice(notice.id)">🗑 삭제</button>
             </div>
@@ -396,14 +413,14 @@ const deleteNotice = async (id) => {
       </div>
     </div>
 
-    <!-- 🔹 검색 결과 없음 -->
+    <!-- 검색 결과 없음 -->
     <div v-else-if="!isLoading" class="no-results">
       <div class="no-results-icon">📭</div>
       <h3>{{ searchKeyword ? '검색 결과가 없습니다' : '등록된 공지사항이 없습니다' }}</h3>
       <p v-if="searchKeyword">다른 검색어로 다시 시도해보세요.</p>
     </div>
 
-    <!-- 🔹 페이징 -->
+    <!-- 페이징 -->
     <div v-if="totalPages > 1 && !isLoading" class="pagination">
       <!-- 맨 처음 페이지 -->
       <button class="page-btn" :disabled="currentPage === 1" @click="changePage(1)">≪</button>
@@ -443,7 +460,7 @@ const deleteNotice = async (id) => {
       </button>
     </div>
 
-    <!-- 🔹 수정 모달 (컨테이너 레벨로 이동) -->
+    <!-- 수정 모달 (컨테이너 레벨로 이동) -->
     <div v-if="showEditModal" class="modal-backdrop" @click.self="closeEditModal">
       <div class="modal">
         <h2>공지사항 수정</h2>
@@ -490,7 +507,7 @@ const deleteNotice = async (id) => {
   padding: 40px 20px;
 }
 
-/* 🔹 헤더 */
+/* 헤더 */
 .notice-header {
   text-align: center;
   margin-bottom: 40px;
@@ -506,7 +523,7 @@ const deleteNotice = async (id) => {
   margin-bottom: 30px;
 }
 
-/* 🔹 검색 영역 */
+/* 검색 영역 */
 .search-section {
   margin: 30px auto 20px;
   max-width: 500px;
@@ -576,7 +593,7 @@ const deleteNotice = async (id) => {
   text-align: right;
 }
 
-/* 🔹 검색 정보 */
+/* 검색 정보 */
 .search-info {
   display: flex;
   justify-content: space-between;
@@ -621,7 +638,7 @@ const deleteNotice = async (id) => {
   border-color: #00c851;
 }
 
-/* 🔹 로딩 */
+/* 로딩 */
 .loading {
   text-align: center;
   padding: 60px 20px;
@@ -647,7 +664,7 @@ const deleteNotice = async (id) => {
   }
 }
 
-/* 🔹 검색 결과 없음 */
+/* 검색 결과 없음 */
 .no-results {
   text-align: center;
   padding: 60px 20px;
@@ -670,7 +687,7 @@ const deleteNotice = async (id) => {
   font-size: 0.9rem;
 }
 
-/* 🔹 리스트 */
+/* 리스트 */
 .notice-list {
   display: flex;
   flex-direction: column;
@@ -794,7 +811,7 @@ const deleteNotice = async (id) => {
   background-color: #fffbeb;
 }
 
-/* 🔹 페이징 */
+/* 페이징 */
 .pagination {
   display: flex;
   justify-content: center;
@@ -831,7 +848,7 @@ const deleteNotice = async (id) => {
   border-color: #00c851;
 }
 
-/* 🔹 슬라이드 페이드 애니메이션 */
+/* 슬라이드 페이드 애니메이션 */
 .slide-fade-enter-active {
   transition: all 0.3s ease-out;
 }
@@ -860,7 +877,7 @@ const deleteNotice = async (id) => {
   max-height: 0;
 }
 
-/* 🔹 반응형 */
+/* 반응형 */
 @media (max-width: 768px) {
   .search-info {
     flex-direction: column;
@@ -910,7 +927,7 @@ const deleteNotice = async (id) => {
   }
 }
 
-/* 🔹 모달 스타일 */
+/* 모달 스타일 */
 .modal-backdrop {
   position: fixed;
   top: 0;
