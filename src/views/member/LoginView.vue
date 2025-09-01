@@ -58,7 +58,6 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue';
-import axios from 'axios'
 import api from '@/utils/axios'
 import { message, Modal } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
