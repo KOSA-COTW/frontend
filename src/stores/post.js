@@ -11,6 +11,18 @@ export const usePostStore = defineStore('post', () => {
   const error = ref(null)
   const selectedCategory = ref(null) // 선택된 카테고리
 
+  const donationTotal = ref(0)
+
+  // 총액 불러오기 액션
+  const fetchDonationTotal = async () => {
+    try {
+      donationTotal.value = await postAPI.getDonationTotal()
+    } catch (err) {
+      console.error('fetchDonationTotal failed:', err)
+      donationTotal.value = 0
+    }
+  }
+
   // 필터된 목록
   const filteredPosts = computed(() => {
     if (!selectedCategory.value) return posts.value
@@ -19,7 +31,8 @@ export const usePostStore = defineStore('post', () => {
 
   // 합계(전체/필터 반영)
   const totalPostAll = computed(() =>
-    posts.value.reduce((sum, p) => sum + (p.currentAmount || 0), 0)
+    // posts.value.reduce((sum, p) => sum + (p.currentAmount || 0), 0)
+    donationTotal.value
   )
   const totalPostFiltered = computed(() =>
     filteredPosts.value.reduce((sum, p) => sum + (p.currentAmount || 0), 0)
@@ -110,7 +123,7 @@ export const usePostStore = defineStore('post', () => {
 
       const payload = { ...postData, imageUrls }
       const response = await postAPI.createPost(payload)
-      
+
       // 생성 후 관련 목록 갱신
       await fetchMyPosts()
       await fetchPostsHome()
@@ -206,5 +219,7 @@ export const usePostStore = defineStore('post', () => {
     updatePost,
     deletePost,
     changePostVisibility,
+    donationTotal,
+    fetchDonationTotal
   }
 }, { persist: true })
