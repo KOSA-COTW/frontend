@@ -254,14 +254,14 @@ onMounted(information)
 
 <style scoped>
 /* 우측 콘텐츠 전용 스타일 (사이드바 관련 코드/스타일 제거) */
-.mypage-content { 
-  padding: 16px 24px; 
+.mypage-content {
+  padding: 16px 24px;
   width: 100%;
 }
 
-.top-card, .donation-card { 
-  border-radius: 16px; 
-  padding: 32px 36px; 
+.top-card, .donation-card {
+  border-radius: 16px;
+  padding: 32px 36px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   border: 1px solid #f0f0f0;
 }
@@ -328,18 +328,18 @@ onMounted(information)
     padding: 16px 20px;
     max-width: none;
   }
-  
-  .top-card, .donation-card { 
+
+  .top-card, .donation-card {
     padding: 24px 20px;
   }
-  
+
   .top-section { grid-template-columns: 1fr; justify-items: center; text-align: center; }
   .header-line { flex-direction: column; align-items: center; }
   .link-buttons { justify-content: center; }
   .invite-summary { flex-direction: column; gap: 6px; }
   .donation-summary { flex-direction: column; align-items: center; text-align: center; gap: 8px; }
   .count { text-align: center; }
-  
+
   /* 모바일에서 PaymentHistoryView 통계 카드 1열로 배치 */
   .mypage-content :deep(.payment-history .stats-grid) {
     grid-template-columns: 1fr;

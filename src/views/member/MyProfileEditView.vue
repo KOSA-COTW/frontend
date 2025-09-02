@@ -15,26 +15,33 @@
         </a-avatar>
 
         <div class="avatar-actions">
-          <a-upload
-            :before-upload="beforeUpload"
-            :show-upload-list="false"
-            :max-count="1"
-            accept="image/png,image/jpeg,image/jpg,image/webp"
-          >
-            <a-button>사진 선택</a-button>
-          </a-upload>
-          <div class="hint">PNG/JPG/WebP, 2MB 이하 권장</div>
-          <div class="action-buttons">
-            <a-button
-              type="primary"
-              :disabled="!avatarFile"
-              :loading="savingAvatar"
-              @click="saveAvatar"
+          <template v-if="canChangeAvatar">
+            <a-upload
+              :before-upload="beforeUpload"
+              :show-upload-list="false"
+              :max-count="1"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
             >
-              사진 저장
-            </a-button>
-            <a-button v-if="avatarFile" @click="resetAvatar" :disabled="savingAvatar">취소</a-button>
-          </div>
+              <a-button>사진 선택</a-button>
+            </a-upload>
+            <div class="hint">PNG/JPG/WebP, 2MB 이하 권장</div>
+            <div class="action-buttons">
+              <a-button
+                type="primary"
+                :disabled="!avatarFile"
+                :loading="savingAvatar"
+                @click="saveAvatar"
+              >
+                사진 저장
+              </a-button>
+              <a-button v-if="avatarFile" @click="resetAvatar" :disabled="savingAvatar">취소</a-button>
+            </div>
+          </template>
+          <template v-else>
+            <div class="hint blocked">
+              소셜 로그인 계정({{ userInfo.provider }})은 프로필 사진을 변경할 수 없어요.
+            </div>
+          </template>
         </div>
       </div>
     </a-card>
@@ -117,7 +124,7 @@ import axios from 'axios'
 const router = useRouter()
 
 // ---- 사용자 정보 로드 (아바타/닉네임 프리뷰용) ----
-const userInfo = reactive({ email: null, nickname: null, pictureUrl: null })
+const userInfo = reactive({ email: null, nickname: null, pictureUrl: null, provider: null})
 const loadingInfo = ref(true)
 
 const loadInfo = async () => {
@@ -128,6 +135,7 @@ const loadInfo = async () => {
     userInfo.email = data.email ?? null
     userInfo.nickname = data.nickname ?? null
     userInfo.pictureUrl = data.pictureUrl ?? null
+    userInfo.provider = data.provider ?? null
 
     // 닉네임 편집 초기화
     originalNickname.value = userInfo.nickname || ''
@@ -145,7 +153,14 @@ const avatarFile = ref(null)
 const avatarPreview = ref('')
 const savingAvatar = ref(false)
 
+// provider가 LOCAL인 경우만 아바타 변경 허용
+const canChangeAvatar = computed(() => (userInfo.provider || '').toUpperCase() === 'LOCAL')
+
 const beforeUpload = (file) => {
+  if (!canChangeAvatar.value) {
+    message.warning('소셜 로그인 계정은 프로필 사진을 변경할 수 없어요.')
+    return false
+  }
   const isImage = /image\/(png|jpeg|webp|jpg)/.test(file.type)
   const isLt2M = file.size / 1024 / 1024 < 2
   if (!isImage) message.warning('이미지 파일만 업로드할 수 있어요.')
@@ -164,6 +179,10 @@ const resetAvatar = () => {
 }
 
 const saveAvatar = async () => {
+  if (!canChangeAvatar.value) {
+    message.warning('소셜 로그인 계정은 프로필 사진을 변경할 수 없어요.')
+    return
+  }
   if (!avatarFile.value) return
   savingAvatar.value = true
   try {
@@ -171,11 +190,11 @@ const saveAvatar = async () => {
     const accessToken = user ? JSON.parse(user).accessToken : null
 
     const fd = new FormData()
-    fd.append('image', avatarFile.value)
+    fd.append('file', avatarFile.value)
 
     // 실제 엔드포인트로 교체 가능
     await axios.patch('/api/changeimage', fd, {
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'multipart/form-data' }
+      headers: { Authorization : `Bearer ${accessToken}` , 'Content-Type': "multipart/form-data"}
     })
     message.success('프로필 사진이 저장되었어요.')
     await loadInfo()
@@ -306,6 +325,7 @@ onMounted(loadInfo)
 .avatar-row { display: flex; align-items: center; gap: 16px; }
 .avatar-actions { display: flex; flex-direction: column; gap: 8px; }
 .hint { font-size: 12px; color: #777; }
+.hint.blocked { color: #999; }
 .action-buttons { display: flex; gap: 8px; }
 
 .pw-hints { display: flex; gap: 12px; margin: 8px 0 16px; font-size: 12px; color: #999; }

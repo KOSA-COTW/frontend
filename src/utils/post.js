@@ -1,5 +1,6 @@
 // utils/post.js
 import api from './axios.js'
+import axios from 'axios'
 
 function buildAccessConfig(extra = {}) {
   try {
@@ -28,6 +29,17 @@ export const postAPI = {
     } catch (error) {
       console.error('[PostAPI] getHomePosts failed:', error)
       throw error
+    }
+  },
+
+  // 기부금 총액
+  getDonationTotal: async () => {
+    try {
+      const response = await axios.get('/api/public/donation-total')
+      return response.data.totalWon
+    }catch (e) {
+      console.error('[DonationAPI] getDonationTotal failed: ', e)
+      throw e
     }
   },
 
