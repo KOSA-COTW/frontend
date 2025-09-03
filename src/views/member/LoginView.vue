@@ -58,7 +58,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue';
-import api from '@/utils/axios'
+import axios from '@/utils/axios'
 import { message, Modal } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.js'
@@ -175,7 +175,7 @@ function promptRecover(email) {
     // onOk가 Promise를 반환하면 confirm 버튼에 로딩이 자동 표시됨
     onOk: async () => {
       try {
-        await api.post('/api/recover', { email }) // ← 서버의 “복구 링크 발송” 엔드포인트
+        await axios.post('/api/recover', { email }) // ← 서버의 “복구 링크 발송” 엔드포인트
         message.success('복구 메일을 전송했어요. 메일함을 확인해 주세요.')
         // (선택) 바로 복구 페이지로 보내고 싶으면:
         // router.push({ name: 'recover', query: { email } })
