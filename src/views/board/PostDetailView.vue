@@ -493,8 +493,8 @@ function proceedToPayment() {
       <div class="main-right">
         <div class="progress-card">
           <div class="progress-header">
-            <span>마감까지 {{ post.remaining }}원</span>
-            <span class="percent">{{ post.percent }}%</span>
+            <span v-if="!(post.overfunded > 0)">마감까지 {{ post.remaining }}원</span>
+            <span class="percent">{{ Math.trunc(post.percentRaw) }}%</span>
           </div>
           <a-progress :percent="post.percent" :stroke-color="mainColor" :show-info="false" />
           <div class="current">
@@ -503,9 +503,13 @@ function proceedToPayment() {
           <div class="progress-info">
             <div>모금 시작일 <span>{{ post.createdAt }}</span></div>
             <div>모금목표 <span>{{ post.amount }}원</span></div>
-            <div>후원잔액까지 <span>{{ post.remaining }}원</span></div>
+            <div v-if="post.overfunded > 0">
+              초과모금 <span style="color: #00C851;">{{ post.overfunded }}원</span>
+            </div>
+            <div v-else>
+              후원잔액까지 <span>{{ post.remaining }}원</span>
+            </div>
             <div>총 참여인원 <span>{{ post.donorCount }}명</span></div>
-            <div v-if="post.overfunded > 0">초과모금 <span style="color: #00C851;">{{ post.overfunded }}원</span></div>
             <div>마감까지 <span>{{ post.daysLeft }}일</span></div>
           </div>
           <a-button
@@ -530,17 +534,6 @@ function proceedToPayment() {
       </div>
       <div class="desc-box">
         <div class="desc-block" v-html="post.content"></div>
-      </div>
-      <div class="stat-row">
-        <div class="stat-col" v-for="(s, idx) in post.stat" :key="idx">
-          <div class="stat-label">
-            <template v-if="idx === 0">미취학</template>
-            <template v-else-if="idx === 1">초등학교 저학년</template>
-            <template v-else-if="idx === 2">초등학교 고학년</template>
-            <template v-else>중학생 이상</template>
-          </div>
-          <div class="stat-value">{{ s }}</div>
-        </div>
       </div>
     </div>
 
@@ -943,33 +936,7 @@ function proceedToPayment() {
   flex: 1;
   min-width: 180px;
   line-height: 1.6;
-}
-
-.stat-row {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 10px;
-  background: #fff;
-  border-radius: 10px;
-  padding: 20px 10px;
-  gap: 12px;
-}
-
-.stat-col {
-  text-align: center;
-  flex: 1;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #888;
-  margin-bottom: 5px;
-}
-
-.stat-value {
-  font-size: 20px;
-  color: #00C851;
-  font-weight: 700;
+  white-space: pre-wrap;
 }
 
 .comment-section {

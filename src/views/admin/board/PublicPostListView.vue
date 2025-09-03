@@ -109,7 +109,7 @@
           <span class="raised">{{ record.currentAmount.toLocaleString() }}원</span>
           /
           <span class="goal">{{ record.amount.toLocaleString() }}원</span>
-          <span class="percent"> ({{ record.percentRaw }}%)</span>
+          <span class="percent"> ({{ Math.trunc(record.percentRaw) }}%)</span>
         </div>
       </div>
     </div>
