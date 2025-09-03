@@ -304,6 +304,11 @@ async function deletePost() {
           router.replace('/posts')
         } else if (err?.code === 'ERR_NETWORK') {
           message.error('서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.')
+        } else if (err?.response?.data?.message === '결제내역이 있는 게시물은 삭제할 수 없습니다.') {
+          Modal.warning({
+            title: '삭제할 수 없습니다',
+            content: '결제 내역이 있는 게시글은 삭제할 수 없습니다.',
+          })
         } else {
           message.error(err?.response?.data?.message || '삭제 중 오류가 발생했습니다.')
         }
