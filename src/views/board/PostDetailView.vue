@@ -3,11 +3,12 @@ import { ref, onMounted, computed, watch, h } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { MoreOutlined } from '@ant-design/icons-vue'
-import { message, Modal } from 'ant-design-vue'   // ✅ Radio import 제거
+import { message, Modal } from 'ant-design-vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePaymentStore } from '@/stores/payment'
 import { usePostStore } from '@/stores/post'
 import { useCommentStore } from '@/stores/comment'
+import dayjs from 'dayjs'
 
 const mainColor = '#00C851'
 const newComment = ref('')
@@ -42,6 +43,10 @@ const error = ref(null)
 
 // 로그인 상태
 const isLoggedIn = computed(() => auth.isLoggedIn)
+
+function formatDateOnly(dateString) {
+  return dayjs(dateString).format('YYYY.MM.DD')
+}
 
 // 신고 사유(백엔드 Enum과 일치)
 const REPORT_REASONS = [
@@ -104,8 +109,6 @@ const canManageComment = (comment) => {
   return false
 }
 
-
-
 // 비공개 댓글은 작성자/관리자만 보이게
 const safeComments = computed(() =>
   (comments.value || [])
@@ -121,7 +124,8 @@ onMounted(async () => {
     }
     await loadComments()
   } catch (err) {
-    error.value = '게시글을 불러오는 중 오류가 발생했습니다.'
+    message.error(err?.response?.data?.message || '게시글을 불러오는 중 오류가 발생했습니다.')
+    router.replace('/posts')
   } finally {
     loading.value = false
   }
@@ -453,60 +457,191 @@ function proceedToPayment() {
 
 <template>
   <div class="detail-root" v-if="post">
-    <!-- 상단 카테고리 뱃지 & 제목 -->
-    <div class="badge-row">
-      <span class="badge">{{ post.category }}</span>
-    </div>
-    <div class="title-row">
-      <h2 class="detail-title">{{ post.title }}</h2>
-      <a-dropdown v-if="canManage" placement="bottomRight">
-        <a class="ant-dropdown-link" @click.prevent>
-          <more-outlined style="font-size: 20px; cursor: pointer;" />
-        </a>
-        <template #overlay>
-          <a-menu>
-            <a-menu-item @click="editPost">수정하기</a-menu-item>
-            <a-menu-item danger @click="deletePost">삭제하기</a-menu-item>
-          </a-menu>
-        </template>
-      </a-dropdown>
+    <!-- 헤더 영역 -->
+    <div class="header-section">
+      <div class="badge-row">
+        <span class="badge">{{ post.category }}</span>
+      </div>
+      <div class="title-row">
+        <h2 class="detail-title">{{ post.title }}</h2>
+        <a-dropdown v-if="canManage" placement="bottomRight">
+          <a class="ant-dropdown-link" @click.prevent>
+            <more-outlined style="font-size: 20px; cursor: pointer;" />
+          </a>
+          <template #overlay>
+            <a-menu>
+              <a-menu-item @click="editPost">수정하기</a-menu-item>
+              <a-menu-item danger @click="deletePost">삭제하기</a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
+      </div>
     </div>
 
-    <div class="main-row">
-      <div class="main-left">
-        <div v-if="post.imageUrls?.length" class="gallery">
-          <div class="main-view">
-            <img :src="activeImage" alt="main image" />
+    <!-- 메인 컨테이너 -->
+    <div class="main-container">
+      <!-- 왼쪽: 콘텐츠 영역 -->
+      <div class="content-area">
+        <!-- 사진 갤러리 -->
+        <div class="image-section">
+          <div v-if="post.imageUrls?.length" class="gallery">
+            <div class="main-view">
+              <img :src="activeImage" alt="main image" />
+            </div>
+            <div class="thumbs">
+              <img
+                v-for="img in post.imageUrls"
+                :key="img"
+                :src="img"
+                :alt="`첨부 이미지`"
+                :class="{ active: activeImage === img }"
+                @click="activeImage = img"
+              />
+            </div>
           </div>
-          <div class="thumbs">
-            <img
-              v-for="img in post.imageUrls"
-              :key="img"
-              :src="img"
-              :alt="`첨부 이미지`"
-              :class="{ active: activeImage === img }"
-              @click="activeImage = img"
-            />
+          <!-- fallback -->
+          <div v-else class="img-wrap">
+            <img class="main-img" src="https://placehold.co/300x180" />
           </div>
         </div>
-        <!-- fallback -->
-        <div v-else class="img-wrap">
-          <img class="main-img" src="https://placehold.co/300x180" />
+
+        <!-- 모금 소개 -->
+        <div class="desc-section">
+          <div class="desc-title">
+            모금소개
+          </div>
+          <div class="desc-box">
+            <div class="desc-block" v-html="post.content"></div>
+          </div>
+        </div>
+
+        <!-- 댓글/한마디 영역 -->
+        <div class="comment-section">
+          <div class="comment-title">
+            따뜻한 <span style="color:#00C851;">한마디</span>
+          </div>
+
+          <!-- 댓글 입력 -->
+          <div class="comment-input-row">
+            <a-input
+              v-model:value="newComment"
+              placeholder="따뜻한 댓글을 남겨주세요!"
+              @keyup.enter="addComment"
+              :disabled="commentsLoading"
+              allow-clear
+              size="large"
+              style="flex: 1; margin-right: 8px;"
+            />
+            <a-button
+              type="primary"
+              size="large"
+              :style="{background: mainColor, borderColor: mainColor}"
+              @click="addComment"
+              :loading="commentsLoading"
+            >
+              등록
+            </a-button>
+          </div>
+
+          <div class="comment-count">
+            댓글 <span style="color:#00C851;">{{ safeComments.length }}</span>
+          </div>
+
+          <div v-if="commentsLoading && safeComments.length === 0" class="comment-loading">
+            <a-spin size="small" /> 댓글을 불러오는 중...
+          </div>
+
+          <div v-else-if="commentsError" class="comment-error">
+            <a-alert
+              :message="commentsError"
+              type="warning"
+              show-icon
+              closable
+              @close="onCloseCommentError"
+            />
+          </div>
+
+          <div v-else-if="safeComments.length === 0" class="no-comments">
+            등록된 한마디가 없습니다.
+          </div>
+
+          <!-- 댓글 목록 -->
+          <ul v-else class="comment-list">
+            <li v-for="c in safeComments" :key="c.id" class="comment-item">
+              <div class="comment-header">
+                <div class="comment-author">
+                  <span class="author-name">
+                    {{ c.authorEmail ? c.authorEmail.split('@')[0] + '@***' : `#${c.memberId}` }}
+                  </span>
+                  <span class="comment-date">{{ formatDate(c.createdAt) }}</span>
+                </div>
+
+                <a-dropdown v-if="canManageComment(c)" placement="bottomRight">
+                  <a class="ant-dropdown-link" @click.prevent>
+                    <more-outlined style="font-size: 16px; color: #999;" />
+                  </a>
+                  <template #overlay>
+                    <a-menu>
+                      <a-menu-item @click="editComment(c.id, c.content)">수정</a-menu-item>
+                      <a-menu-item danger @click="deleteComment(c.id)">삭제</a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </div>
+
+              <div class="comment-content">{{ c.content }}</div>
+
+              <div class="comment-actions">
+                <button
+                  class="like-btn"
+                  :disabled="commentStore.likeLoading?.has?.(c.id)"
+                  @click="onToggleLike(c)"
+                  :aria-pressed="!!c.liked"
+                  :title="c.liked ? '좋아요 취소' : '좋아요'"
+                >
+                  <span v-if="c.liked">❤️</span>
+                  <span v-else>🤍</span>
+                  <span class="count">{{ c.likeCount || 0 }}</span>
+                </button>
+
+                <button
+                  class="report-btn"
+                  :disabled="commentStore.reportLoading?.has?.(c.id)"
+                  @click="openReport(c)"
+                  title="신고하기"
+                >
+                  🚩 신고 <span v-if="c.reportCount">({{ c.reportCount }})</span>
+                </button>
+              </div>
+
+            </li>
+          </ul>
         </div>
       </div>
 
-      <div class="main-right">
-        <div class="progress-card">
+      <!-- 오른쪽: 모금 정보 (Sticky) -->
+      <div class="sidebar-area">
+        <div class="progress-card sticky-card">
+          <!-- 게이지 위 영역 -->
           <div class="progress-header">
-            <span v-if="!(post.overfunded > 0)">마감까지 {{ post.remaining }}원</span>
-            <span class="percent">{{ Math.trunc(post.percentRaw) }}%</span>
+            <div class="left">
+              <div class="goal">목표 {{ post.amount.toLocaleString() }}원</div>
+              <div class="current">{{ post.currentAmount.toLocaleString() }}원 모금</div>
+            </div>
+            <div class="right">
+              <span class="percent">{{ Math.trunc(post.percentRaw) }}%</span>
+            </div>
           </div>
+
+          <!-- 게이지 -->
           <a-progress :percent="post.percent" :stroke-color="mainColor" :show-info="false" />
-          <div class="current">
-            {{ post.currentAmount ? post.currentAmount + '원 모금' : '---' }}
+
+          <!-- 게이지 아래 왼쪽 하단 -->
+          <div class="progress-footer">
+            <span class="start">모금 시작일 {{ formatDateOnly(post.createdAt) }}</span>
           </div>
+          <br/>
           <div class="progress-info">
-            <div>모금 시작일 <span>{{ post.createdAt }}</span></div>
             <div>모금목표 <span>{{ post.amount }}원</span></div>
             <div v-if="post.overfunded > 0">
               초과모금 <span style="color: #00C851;">{{ post.overfunded }}원</span>
@@ -526,123 +661,10 @@ function proceedToPayment() {
           >
             <template v-if="post.status === 'COMPLETED' && !isAdmin">마감됨</template>
             <template v-else-if="isAdmin">기부내역보기</template>
-            <template v-else>곧장기부하기</template>
+            <template v-else>기부하기</template>
           </a-button>
         </div>
       </div>
-    </div>
-
-    <!-- 상세 내용 -->
-    <div class="desc-section">
-      <div class="desc-title">
-        기부금이 <span style="color:#FFC107">곧장</span>
-      </div>
-      <div class="desc-box">
-        <div class="desc-block" v-html="post.content"></div>
-      </div>
-    </div>
-
-    <!-- 댓글/한마디 영역 -->
-    <div class="comment-section">
-      <div class="comment-title">
-        따뜻한 <span style="color:#FFC107;">한마디</span>
-      </div>
-
-      <!-- 댓글 입력 -->
-      <div class="comment-input-row">
-        <a-input
-          v-model:value="newComment"
-          placeholder="따뜻한 댓글을 남겨주세요!"
-          @keyup.enter="addComment"
-          :disabled="commentsLoading"
-          allow-clear
-          size="large"
-          style="width:70%;margin-right:8px;"
-        />
-        <a-button
-          type="primary"
-          size="large"
-          :style="{background: mainColor, borderColor: mainColor}"
-          @click="addComment"
-          :loading="commentsLoading"
-        >
-          등록
-        </a-button>
-      </div>
-
-      <div class="comment-count">
-        댓글 <span style="color:#00C851;">{{ safeComments.length }}</span>
-      </div>
-
-      <div v-if="commentsLoading && safeComments.length === 0" class="comment-loading">
-        <a-spin size="small" /> 댓글을 불러오는 중...
-      </div>
-
-      <div v-else-if="commentsError" class="comment-error">
-        <a-alert
-          :message="commentsError"
-          type="warning"
-          show-icon
-          closable
-          @close="onCloseCommentError"
-        />
-      </div>
-
-      <div v-else-if="safeComments.length === 0" class="no-comments">
-        등록된 한마디가 없습니다.
-      </div>
-
-      <!-- 댓글 목록 -->
-      <ul v-else class="comment-list">
-        <li v-for="c in safeComments" :key="c.id" class="comment-item">
-          <div class="comment-header">
-            <div class="comment-author">
-              <span class="author-name">
-                {{ c.authorEmail ? c.authorEmail.split('@')[0] + '@***' : `#${c.memberId}` }}
-              </span>
-              <span class="comment-date">{{ formatDate(c.createdAt) }}</span>
-            </div>
-
-            <a-dropdown v-if="canManageComment(c)" placement="bottomRight">
-              <a class="ant-dropdown-link" @click.prevent>
-                <more-outlined style="font-size: 16px; color: #999;" />
-              </a>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="editComment(c.id, c.content)">수정</a-menu-item>
-                  <a-menu-item danger @click="deleteComment(c.id)">삭제</a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
-          </div>
-
-          <div class="comment-content">{{ c.content }}</div>
-
-          <div class="comment-actions">
-            <button
-              class="like-btn"
-              :disabled="commentStore.likeLoading?.has?.(c.id)"
-              @click="onToggleLike(c)"
-              :aria-pressed="!!c.liked"
-              :title="c.liked ? '좋아요 취소' : '좋아요'"
-            >
-              <span v-if="c.liked">❤️</span>
-              <span v-else>🤍</span>
-              <span class="count">{{ c.likeCount || 0 }}</span>
-            </button>
-
-            <button
-              class="report-btn"
-              :disabled="commentStore.reportLoading?.has?.(c.id)"
-              @click="openReport(c)"
-              title="신고하기"
-            >
-              🚩 신고 <span v-if="c.reportCount">({{ c.reportCount }})</span>
-            </button>
-          </div>
-
-        </li>
-      </ul>
     </div>
 
     <!-- 신고 모달: 컨트롤드 -->
@@ -728,6 +750,238 @@ function proceedToPayment() {
 </template>
 
 <style scoped>
+.detail-root {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+
+/* 헤더 영역 */
+.header-section {
+  margin-bottom: 32px;
+}
+
+.badge-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.badge {
+  background: #F5F5F5;
+  color: #333;
+  border-radius: 12px;
+  font-size: 13px;
+  padding: 3px 10px;
+  font-weight: 500;
+}
+
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-title {
+  font-size: 26px;       /* 조금 더 큼직하게 */
+  font-weight: 700;
+  margin: 0 0 12px 0;    /* 아래쪽에 공간 추가 */
+  line-height: 1.3;      /* 여러 줄 제목도 읽기 좋게 */
+}
+
+/* 메인 컨테이너 */
+.main-container {
+  display: flex;
+  gap: 40px;
+}
+
+/* 왼쪽 콘텐츠 영역 */
+.content-area {
+  flex: 1;
+  max-width: calc(100% - 350px);
+}
+
+/* 오른쪽 사이드바 */
+.sidebar-area {
+  flex: 0 0 310px;
+}
+
+.sticky-card {
+  position: sticky;
+  top: 20px;
+}
+
+/* 이미지 섹션 */
+.image-section {
+  margin-bottom: 44px;
+}
+
+.img-wrap {
+  width: 100%;
+  height: 220px;
+  border-radius: 16px;
+  position: relative;
+  background: #f9f9f9;
+  overflow: hidden;
+}
+
+.main-img {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+/* 갤러리 */
+.gallery .main-view img {
+  width: 100%;
+  height: 400px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.gallery .thumbs {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  overflow-x: auto;
+}
+
+.gallery .thumbs img {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.gallery .thumbs img.active {
+  border: 2px solid #00C851;
+  opacity: 1;
+}
+
+/* 모금 정보 카드 */
+.progress-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 26px 18px 22px 18px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+
+.progress-header .goal {
+  font-size: 12px;
+  color: #888;
+  margin-bottom:4px;
+}
+
+.progress-header .current {
+  font-size: 16px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 2px;
+}
+
+.progress-header .percent {
+  font-size: 20px;
+  font-weight: 800;
+  color: #00C851;
+  line-height: 1;
+  margin-bottom: 0;
+}
+
+.progress-footer {
+  margin-top: 0px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.progress-footer .start {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.progress-info {
+  margin-bottom: 22px;
+  font-size: 14px;
+  color: #888;
+  line-height: 1.7;
+}
+
+.progress-info span {
+  float: right;
+  color: #111;
+  font-weight: 500;
+}
+
+.donate-btn {
+  width: 100%;
+  height: 46px;
+  font-size: 17px;
+  font-weight: bold;
+}
+
+/* 모금 소개 섹션 */
+.desc-section {
+  margin-bottom: 54px;
+  background: #FCFCF6;
+  border-radius: 18px;
+  padding: 32px 22px 24px 22px;
+}
+
+.desc-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.desc-box {
+  display: flex;
+  gap: 30px;
+  font-size: 14px;
+  color: #444;
+  margin-bottom: 24px;
+}
+
+.desc-block {
+  flex: 1;
+  min-width: 180px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* 댓글 섹션 */
+.comment-section {
+  /* margin-top은 desc-section에서 margin-bottom으로 처리 */
+}
+
+.comment-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.comment-input-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.comment-count {
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 15px;
+  font-weight: 500;
+}
+
 .comment-loading {
   display: flex;
   align-items: center;
@@ -739,6 +993,19 @@ function proceedToPayment() {
 
 .comment-error {
   margin-bottom: 16px;
+}
+
+.no-comments {
+  color: #bbb;
+  padding: 30px 0 20px 0;
+  font-size: 15px;
+  text-align: center;
+}
+
+.comment-list {
+  margin: 0;
+  padding: 0 0 14px 0;
+  list-style: none;
 }
 
 .comment-item {
@@ -800,212 +1067,120 @@ function proceedToPayment() {
   align-items: center;
   gap: 6px;
 }
-.like-btn[aria-pressed="true"] { border-color:#ff6b81; }
-.like-btn:hover { background: #fff7f8; }
-.report-btn:hover { background: #fff7f0; }
 
-.detail-root {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 40px 10px 60px 10px;
-  font-family: 'Noto Sans KR', sans-serif;
+.like-btn[aria-pressed="true"] {
+  border-color:#ff6b81;
 }
 
-.title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.like-btn:hover {
+  background: #fff7f8;
 }
 
-.detail-title {
-  font-size: 21px;
-  font-weight: 700;
-  margin: 0;
+.report-btn:hover {
+  background: #fff7f0;
 }
 
-.badge-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
+/* 기부 모달 스타일 */
+.donation-modal {
+  padding: 20px 0;
 }
 
-.badge {
-  background: #F5F5F5;
-  color: #333;
-  border-radius: 12px;
-  font-size: 13px;
-  padding: 3px 10px;
-  font-weight: 500;
+.modal-post-info {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.main-row {
-  display: flex;
-  gap: 28px;
-  align-items: flex-start;
-}
-
-.main-left {
-  flex: 1 1 350px;
-}
-
-.main-right {
-  flex: 0 0 310px;
-}
-
-.img-wrap {
-  width: 100%;
-  height: 220px;
-  border-radius: 16px;
-  position: relative;
-  background: #f9f9f9;
-  overflow: hidden;
-}
-
-.main-img {
-  width: 100%;
-  height: 220px;
-  object-fit: cover;
-  border-radius: 16px;
-}
-
-.progress-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 26px 18px 22px 18px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
-}
-
-.progress-header {
-  font-size: 17px;
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.percent {
-  font-size: 22px;
-  font-weight: 800;
-  color: #00C851;
-}
-
-.current {
-  margin: 10px 0 14px 0;
+.modal-post-info h3 {
+  margin: 0 0 8px 0;
   font-size: 18px;
   font-weight: 600;
-  color: #222;
 }
 
-.progress-info {
-  margin-bottom: 22px;
+.modal-description {
+  margin: 0;
+  color: #666;
   font-size: 14px;
-  color: #888;
-  line-height: 1.7;
 }
 
-.progress-info span {
-  float: right;
-  color: #111;
-  font-weight: 500;
-}
-
-.donate-btn {
-  width: 100%;
-  height: 46px;
-  font-size: 17px;
-  font-weight: bold;
-}
-
-.desc-section {
-  margin-top: 44px;
-  background: #FCFCF6;
-  border-radius: 18px;
-  padding: 32px 22px 24px 22px;
-}
-
-.desc-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 16px;
-}
-
-.desc-box {
-  display: flex;
-  gap: 30px;
-  font-size: 14px;
-  color: #444;
+.amount-section {
   margin-bottom: 24px;
 }
 
-.desc-block {
-  flex: 1;
-  min-width: 180px;
-  line-height: 1.6;
-  white-space: pre-wrap;
+.amount-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.comment-section {
-  margin-top: 54px;
+.quick-amounts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
-.comment-title {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 18px;
+.quick-amount-btn {
+  padding: 12px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
 }
 
-.comment-input-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 14px;
+.quick-amount-btn:hover {
+  border-color: #00C851;
 }
 
-.comment-count {
-  margin-bottom: 10px;
-  color: #333;
-  font-size: 15px;
-  font-weight: 500;
+.quick-amount-btn.active {
+  background: #00C851;
+  border-color: #00C851;
+  color: white;
 }
 
-.no-comments {
-  color: #bbb;
-  padding: 30px 0 20px 0;
-  font-size: 15px;
+.selected-amount {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f6f6f6;
+  border-radius: 8px;
   text-align: center;
 }
 
-.comment-list {
-  margin: 0;
-  padding: 0 0 14px 0;
-  list-style: none;
+.amount-display {
+  font-size: 18px;
+  font-weight: 600;
+  color: #00C851;
 }
 
-/* 갤러리 */
-.gallery .main-view img {
-  width: 100%;
-  height: 300px;
-  object-fit: cover;
-  border-radius: 12px;
-}
-
-.gallery .thumbs {
+.modal-footer {
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
-  margin-top: 10px;
-  overflow-x: auto;
 }
 
-.gallery .thumbs img {
-  width: 70px;
-  height: 70px;
-  object-fit: cover;
-  border-radius: 6px;
-  cursor: pointer;
-  opacity: 0.6;
-}
+/* 반응형 */
+@media (max-width: 768px) {
+  .main-container {
+    flex-direction: column;
+    gap: 24px;
+  }
 
-.gallery .thumbs img.active {
-  border: 2px solid #00C851;
-  opacity: 1;
+  .content-area {
+    max-width: 100%;
+  }
+
+  .sidebar-area {
+    flex: none;
+  }
+
+  .sticky-card {
+    position: static;
+  }
+
+  .quick-amounts {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 </style>
