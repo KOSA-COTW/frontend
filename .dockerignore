@@ -38,7 +38,6 @@ coverage/
 # Environment files
 .env.local
 .env.development
-.env.production
 .env.test
 
 # Build artifacts
