@@ -48,6 +48,14 @@ function formatDateOnly(dateString) {
   return dayjs(dateString).format('YYYY.MM.DD')
 }
 
+const showAllDonors = ref(false)
+
+// 처음엔 기부자 5명만 보여주고, 더보기 누르면 전체
+const visibleDonors = computed(() => {
+  if (!post.value?.donors) return []
+  return showAllDonors.value ? post.value.donors : post.value.donors.slice(0, 5)
+})
+
 // 신고 사유(백엔드 Enum과 일치)
 const REPORT_REASONS = [
   { label: '스팸', value: 'SPAM' },
@@ -512,6 +520,50 @@ function proceedToPayment() {
           </div>
           <div class="desc-box">
             <div class="desc-block" v-html="post.content"></div>
+          </div>
+        </div>
+
+        <!-- 기부자 목록 -->
+        <div class="donor-section" v-if="post.donors && post.donors.length">
+          <div class="donor-stats">
+            <div>
+              <span class="label">모금목표</span>
+              <span class="value">{{ post.amount.toLocaleString() }}원</span>
+            </div>
+            <div>
+              <span class="label">모금현황</span>
+              <span class="value">{{ post.currentAmount.toLocaleString() }}원</span>
+            </div>
+            <div>
+              <span class="label">모금완료까지</span>
+              <span class="value highlight">{{ post.remaining.toLocaleString() }}원</span>
+            </div>
+          </div>
+
+          <ul class="donor-list">
+            <li v-for="donor in visibleDonors" :key="donor.id" class="donor-item">
+              <div class="donor-left">
+                <img
+                  v-if="donor.pictureUrl"
+                  :src="donor.pictureUrl"
+                  alt="프로필"
+                  class="donor-avatar"
+                />
+                <div class="donor-info">
+                  <div class="donor-name">{{ donor.name }}</div>
+                  <div class="donor-date">{{ formatDateOnly(donor.createdAt) }}</div>
+                </div>
+              </div>
+              <div class="donor-amount">
+                {{ donor.amount.toLocaleString() }}원
+              </div>
+            </li>
+          </ul>
+
+          <div v-if="post.donors.length > 5" class="donor-more">
+            <a-button type="text" @click="showAllDonors = !showAllDonors">
+              {{ showAllDonors ? '접기 ▲' : '더보기 ▼' }}
+            </a-button>
           </div>
         </div>
 
@@ -1183,4 +1235,91 @@ function proceedToPayment() {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+.donor-section {
+  margin-bottom: 40px;
+  background: #fdfdfd;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.donor-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.donor-stats .label {
+  color: #888;
+  margin-right: 4px;
+  font-size: 15px;
+}
+
+.donor-stats .value {
+  font-weight: 600;
+  color: #222;
+  font-size: 18px;
+}
+
+.donor-stats .highlight {
+  color: #00C851;
+  font-size: 18px;
+}
+
+.donor-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.donor-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.donor-item:last-child {
+  border-bottom: none;
+}
+
+.donor-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.donor-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.donor-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.donor-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.donor-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.donor-amount {
+  font-weight: 700;
+  color: #222;
+}
+
+.donor-more {
+  text-align: center;
+  margin-top: 12px;
+}
+
 </style>
