@@ -121,7 +121,7 @@ import { onMounted, reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { message } from 'ant-design-vue'
-import axios from 'axios'
+import axios from '@/utils/axios'
 import PaymentHistoryView from '@/views/payment/PaymentHistoryView.vue'
 
 const router = useRouter()
@@ -181,9 +181,7 @@ const referralLink = computed(() =>
 const information = async () => {
   loading.value = true
   try {
-    const user = localStorage.getItem('auth')
-    const accessToken = user ? JSON.parse(user).accessToken : null
-    const { data: info } = await axios.get('/api/info', { headers: { Authorization: `Bearer ${accessToken}` } })
+    const { data: info } = await axios.get('/api/info')
 
     userInfo.email = info.email ?? null
     userInfo.name = info.name ?? null
@@ -221,10 +219,7 @@ const handleDelete = async () => {
   if (!deletePassword.value) return
   deleteLoading.value = true; deleteError.value = ''
   try {
-    const user = localStorage.getItem('auth')
-    const accessToken = user ? JSON.parse(user).accessToken : null
-    // 프로젝트 컨벤션에 맞춰 POST 사용
-    await axios.post('/api/deactivate', { password: deletePassword.value }, { headers: { Authorization: `Bearer ${accessToken}` } })
+    await axios.post('/api/deactivate', { password: deletePassword.value })
     message.success('계정이 삭제되었습니다. 그동안 이용해 주셔서 감사합니다.')
     closeDeleteModal(); auth.logout(); router.replace('/')
   } catch (e) {

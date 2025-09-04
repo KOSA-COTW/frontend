@@ -122,9 +122,17 @@ const handleSubmit = async () => {
   loading.value = true;
 
   try {
+    // 상대 경로 사용 (로컬: 프록시, 배포: 같은 도메인)
     const response = await axios.post('/api/auth/login', {
       email: form.email,
       password: form.password
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      transformRequest: [(data) => {
+        return JSON.stringify(data);
+      }]
     });
 
     // JWT 토큰 저장 (응답 데이터에서 또는 헤더에서)
@@ -176,7 +184,7 @@ function promptRecover(email) {
     // onOk가 Promise를 반환하면 confirm 버튼에 로딩이 자동 표시됨
     onOk: async () => {
       try {
-        await api.post('/api/recover', { email }) // ← 서버의 “복구 링크 발송” 엔드포인트
+        await api.post('/api/recover', { email }) // ← 서버의 "복구 링크 발송" 엔드포인트
         message.success('복구 메일을 전송했어요. 메일함을 확인해 주세요.')
         // (선택) 바로 복구 페이지로 보내고 싶으면:
         // router.push({ name: 'recover', query: { email } })
