@@ -3,15 +3,7 @@
     <div class="header">
       <h2>내 게시글</h2>
       <div class="stats">
-        <span>총 {{ totalPosts }}개의 게시글</span>
-        <span class="divider">|</span>
-        <span style="color: #00c851">공개 {{ approvedCount }}개</span>
-        <span class="divider">|</span>
-        <span style="color: #ff4d4f">비공개 {{ privateCount }}개</span>
-        <span class="divider">|</span>
-        <span style="color: #faad14">승인 대기 {{ pendingCount }}개</span>
-        <span class="divider">|</span>
-        <span style="color: #8c8c8c">반려됨 {{ rejectedCount }}개</span>
+        <span>총 {{ totalElements }}개의 게시글</span>
       </div>
     </div>
 
@@ -23,7 +15,6 @@
           placeholder="제목으로 검색하세요"
           style="width: 300px"
           @search="handleSearch"
-          @change="handleSearchChange"
           allow-clear
         />
       </div>
@@ -33,7 +24,6 @@
           v-model:value="statusFilter"
           placeholder="상태 필터"
           style="width: 140px"
-          @change="handleFilter"
           allow-clear
         >
           <a-select-option value="APPROVED">공개</a-select-option>
@@ -43,12 +33,26 @@
         </a-select>
 
         <a-select
+          v-model:value="categoryFilter"
+          placeholder="카테고리"
+          style="width: 120px; margin-left: 8px"
+          allow-clear
+        >
+          <a-select-option value="아동">아동</a-select-option>
+          <a-select-option value="장애인">장애인</a-select-option>
+          <a-select-option value="어르신">어르신</a-select-option>
+          <a-select-option value="동물">동물</a-select-option>
+          <a-select-option value="환경">환경</a-select-option>
+          <a-select-option value="지구촌">지구촌</a-select-option>
+          <a-select-option value="사회">사회</a-select-option>
+        </a-select>
+
+        <a-select
           v-model:value="sortBy"
           style="width: 140px; margin-left: 8px"
-          @change="handleSort"
         >
-          <a-select-option value="createdAt-desc">최신순</a-select-option>
-          <a-select-option value="createdAt-asc">오래된순</a-select-option>
+          <a-select-option value="date-desc">최신순</a-select-option>
+          <a-select-option value="date-asc">오래된순</a-select-option>
           <a-select-option value="title-asc">제목순(가나다)</a-select-option>
           <a-select-option value="title-desc">제목순(다나가)</a-select-option>
         </a-select>
@@ -61,7 +65,7 @@
 
     <!-- 테이블 -->
     <a-table
-      :data-source="displayPosts"
+      :data-source="posts"
       :loading="loading"
       row-key="id"
       bordered
@@ -71,7 +75,7 @@
     >
       <a-table-column title="번호" key="index" width="60" align="center">
         <template #default="{ record, index }">
-          {{ (currentPage - 1) * pageSize + index + 1 }}
+          {{ (currentPage - 1) * limit + index + 1 }}
         </template>
       </a-table-column>
 
@@ -180,7 +184,7 @@
     </a-table>
 
     <!-- 빈 상태 -->
-    <div v-if="!loading && displayPosts.length === 0" class="empty-state">
+    <div v-if="!loading && posts.length === 0" class="empty-state">
       <div class="empty-icon">📝</div>
       <div class="empty-text">
         <template v-if="hasActiveFilters"> 검색 조건에 맞는 게시글이 없습니다. </template>
@@ -200,7 +204,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { postAPI } from '@/utils/post'
+import axios from '@/utils/axios'
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 
@@ -211,9 +215,14 @@ const posts = ref([])
 const loading = ref(false)
 const searchKeyword = ref('')
 const statusFilter = ref(undefined)
-const sortBy = ref('createdAt-desc')
+const categoryFilter = ref(undefined)
+const sortBy = ref('date-desc')
 const currentPage = ref(1)
-const pageSize = ref(10)
+const limit = ref(10)
+const totalPages = ref(0)
+const totalElements = ref(0)
+const hasNext = ref(false)
+const hasPrevious = ref(false)
 
 const getStatusTag = (status) => {
   switch (status) {
@@ -230,91 +239,34 @@ const getStatusTag = (status) => {
   }
 }
 
-const filteredPosts = computed(() => {
-  let result = [...posts.value]
-
-  // 검색
-  if (searchKeyword.value) {
-    result = result.filter((post) =>
-      post.title?.toLowerCase().includes(searchKeyword.value.toLowerCase())
-    )
+// 한글 displayName을 Category enum으로 변환
+const getCategoryEnum = (displayName) => {
+  const categoryMap = {
+    '아동': 'CHILD',
+    '장애인': 'DISABLED',
+    '어르신': 'SENIOR',
+    '동물': 'ANIMAL',
+    '환경': 'ENVIRONMENT',
+    '지구촌': 'GLOBAL',
+    '사회': 'SOCIETY'
   }
-
-  // 상태 필터
-  if (statusFilter.value) {
-    result = result.filter((post) => post.visibilityStatus === statusFilter.value)
-  }
-
-  return result
-})
-
-// 정렬된 게시글 계산
-const sortedPosts = computed(() => {
-  const result = [...filteredPosts.value]
-  const [field, order] = sortBy.value.split('-')
-
-  result.sort((a, b) => {
-    let valueA = a[field]
-    let valueB = b[field]
-
-    if (field === 'createdAt') {
-      valueA = new Date(valueA)
-      valueB = new Date(valueB)
-    } else if (field === 'title') {
-      valueA = valueA.toLowerCase()
-      valueB = valueB.toLowerCase()
-    }
-
-    if (order === 'asc') {
-      return valueA > valueB ? 1 : -1
-    } else {
-      return valueA < valueB ? 1 : -1
-    }
-  })
-
-  return result
-})
-
-// 페이지네이션을 위한 표시될 게시글
-const displayPosts = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return sortedPosts.value.slice(start, end)
-})
-
-// 통계 계산
-const totalPosts = computed(() => posts.value.length)
-
-const approvedCount = computed(
-  () => posts.value.filter((post) => post.visibilityStatus === 'APPROVED').length,
-)
-
-const privateCount = computed(
-  () => posts.value.filter((post) => post.visibilityStatus === 'PRIVATE').length,
-)
-
-const pendingCount = computed(
-  () => posts.value.filter((post) => post.visibilityStatus === 'PENDING').length,
-)
-
-const rejectedCount = computed(
-  () => posts.value.filter((post) => post.visibilityStatus === 'REJECTED').length,
-)
+  return categoryMap[displayName] || null
+}
 
 // 활성화된 필터가 있는지 확인
 const hasActiveFilters = computed(() => {
-  return searchKeyword.value || statusFilter.value || sortBy.value !== 'createdAt-desc'
+  return searchKeyword.value || statusFilter.value || categoryFilter.value || sortBy.value !== 'date-desc'
 })
 
 // 페이지네이션 설정
 const paginationConfig = computed(() => ({
   current: currentPage.value,
-  pageSize: pageSize.value,
-  total: sortedPosts.value.length,
+  pageSize: limit.value,
+  total: totalElements.value,
   showSizeChanger: true,
   showQuickJumper: true,
   showTotal: (total, range) => `${range[0]}-${range[1]} / 총 ${total}개`,
-  pageSizeOptions: ['5', '10', '20', '50'],
+  pageSizeOptions: ['10', '20', '50'],
   size: 'default',
 }))
 
@@ -322,7 +274,33 @@ const paginationConfig = computed(() => ({
 const fetchMyPosts = async () => {
   loading.value = true
   try {
-    posts.value = await postAPI.getMyPosts()
+    const params = {
+      page: currentPage.value,
+      limit: limit.value,
+      sortBy: sortBy.value.split('-')[0],
+      sortDirection: sortBy.value.split('-')[1]
+    }
+    
+    if (statusFilter.value) {
+      params.visibility = statusFilter.value
+    }
+    
+    if (categoryFilter.value) {
+      params.category = getCategoryEnum(categoryFilter.value)
+    }
+    
+    if (searchKeyword.value) {
+      params.title = searchKeyword.value
+    }
+    
+    const res = await axios.get('/api/posts/me', { params })
+    
+    posts.value = res.posts
+    totalPages.value = res.totalPages
+    totalElements.value = res.totalElements
+    hasNext.value = res.hasNext
+    hasPrevious.value = res.hasPrevious
+    
   } catch (e) {
     console.error('내 게시글 불러오기 실패:', e)
     message.error('게시글을 불러오는 중 오류가 발생했습니다.')
@@ -333,32 +311,22 @@ const fetchMyPosts = async () => {
 
 const handleSearch = () => {
   currentPage.value = 1
-}
-
-const handleSearchChange = (e) => {
-  if (!e.target.value) {
-    currentPage.value = 1
-  }
-}
-
-const handleFilter = () => {
-  currentPage.value = 1
-}
-
-const handleSort = () => {
-  currentPage.value = 1
+  fetchMyPosts()
 }
 
 const handleTableChange = (pagination, filters, sorter) => {
   currentPage.value = pagination.current
-  pageSize.value = pagination.pageSize
+  limit.value = pagination.pageSize
+  fetchMyPosts()
 }
 
 const resetFilters = () => {
   searchKeyword.value = ''
   statusFilter.value = undefined
-  sortBy.value = 'createdAt-desc'
+  categoryFilter.value = undefined
+  sortBy.value = 'date-desc'
   currentPage.value = 1
+  fetchMyPosts()
 }
 
 const formatDate = (dateString) => {
@@ -393,9 +361,9 @@ const editPost = (postId) => {
 
 const deletePost = async (postId) => {
   try {
-    await postAPI.deletePost(postId)
-    posts.value = posts.value.filter((post) => post.id !== postId)
+    await axios.delete(`/api/posts/${postId}`)
     message.success('게시글이 삭제되었습니다.')
+    fetchMyPosts()
   } catch (e) {
     console.error('게시글 삭제 실패:', e)
     if (e?.response?.data?.message === '결제내역이 있는 게시물은 삭제할 수 없습니다.') {
@@ -408,7 +376,7 @@ const deletePost = async (postId) => {
 
 const requestApproval = async (postId) => {
   try {
-    await postAPI.requestApproval(postId)
+    await axios.post(`/api/posts/${postId}/request-approval`)
     message.success('승인 요청 완료!')
     fetchMyPosts()
   } catch (e) {
@@ -419,7 +387,7 @@ const requestApproval = async (postId) => {
 
 const cancelApproval = async (postId) => {
   try {
-    await postAPI.cancelApproval(postId)
+    await axios.post(`/api/posts/${postId}/cancel-approval`)
     message.info('승인 요청이 취소되었습니다.')
     fetchMyPosts()
   } catch (e) {
@@ -428,9 +396,17 @@ const cancelApproval = async (postId) => {
   }
 }
 
-// 필터나 검색이 변경될 때 첫 페이지로 이동
-watch([searchKeyword, statusFilter], () => {
-  currentPage.value = 1
+// 필터가 변경될 때 데이터 다시 로드
+watch([statusFilter, categoryFilter, sortBy], () => {
+  fetchMyPosts()
+})
+
+// 검색어 변경 시에만 페이지 초기화
+watch(searchKeyword, () => {
+  if (searchKeyword.value === '') {
+    currentPage.value = 1
+    fetchMyPosts()
+  }
 })
 
 onMounted(fetchMyPosts)
