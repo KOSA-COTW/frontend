@@ -1,11 +1,23 @@
 // utils/post.js
 import api from './axios.js'
+import axios from 'axios'
 
 export const postAPI = {
   // 메인: 공개 + 마감 임박 6개
   getHomePosts: async () => {
     const response = await api.get('/api/posts/home')
     return response
+  },
+
+  // 기부금 총액
+  getDonationTotal: async () => {
+    try {
+      const response = await axios.get('/api/public/donation-total')
+      return response.data.totalWon
+    }catch (e) {
+      console.error('[DonationAPI] getDonationTotal failed: ', e)
+      throw e
+    }
   },
 
   // 전체 공개글

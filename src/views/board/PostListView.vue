@@ -25,6 +25,12 @@ const categories = [
 ]
 
 onMounted(() => {
+  const category = router.currentRoute.value.query.category
+  if (category) {
+    postStore.setCategory(category)
+  } else {
+    postStore.setCategory('ALL')
+  }
   postStore.fetchPostsAll()
 })
 
@@ -135,10 +141,10 @@ function goDetail(id) {
             />
 
             <div class="bottom-info">
-              <span class="remaining">
+              <span v-if="item.percentRaw < 100" class="remaining">
                 마감까지 {{ (item.remaining || 0).toLocaleString() }}원
               </span>
-              <span class="percent">{{ item.percentRaw ?? 0 }}%</span>
+              <span class="percent">{{ Math.trunc(item.percentRaw) }}%<span v-if="item.percentRaw >= 100"> 🎉</span></span>
             </div>
           </div>
         </a-card>

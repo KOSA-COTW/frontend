@@ -27,15 +27,16 @@ function goDetail(id) {
 onMounted(() => {
   console.log('메인페이지 onMounted 실행됨')
   postStore.fetchPostsHome()
+  postStore.fetchDonationTotal()
 })
 
 // 카테고리 스크롤 함수
 function scrollCategories(direction) {
   if (!categoryContainer.value) return
-  
+
   const scrollAmount = 200
   const currentScroll = categoryContainer.value.scrollLeft
-  
+
   if (direction === 'left') {
     categoryContainer.value.scrollTo({
       left: currentScroll - scrollAmount,
@@ -49,7 +50,7 @@ function scrollCategories(direction) {
   }
 }
 
-// 카테고리 목록 
+// 카테고리 목록
 const categories = [
   { id: 0, name: '전체', icon: 'https://cdn-icons-png.flaticon.com/512/992/992651.png' },
   { id: 1, name: '아동', icon: 'https://cdn-icons-png.flaticon.com/512/921/921347.png' },
@@ -102,10 +103,10 @@ const categories = [
               style="margin-top: 10px"
             />
             <div class="bottom-info">
-              <span class="remaining">
-                마감까지 {{ (item.remaining || 0).toLocaleString() }}원
+              <span class="percent" :class="{ over: item.percentRaw >= 100 }">
+                {{ Math.trunc(item.percentRaw) }}%
+                <span v-if="item.percentRaw >= 100"> 🎉</span>
               </span>
-              <span class="percent"> {{ item.percentRaw }}% </span>
             </div>
           </div>
         </a-card>
@@ -156,20 +157,22 @@ const categories = [
         </button>
       </div>
     </div>
-    
+
     <div class="category-scroll-container" ref="categoryContainer">
       <div class="category-list">
         <div
           v-for="category in categories"
           :key="category.id"
           class="category-item"
-          @click="() => { 
+          @click="() => {
             if (category.name === '전체') {
-              postStore.clearCategory()
+              router.push({ name: 'postList' })
             } else {
-              postStore.setCategory(category.name)
+              router.push({
+              name: 'postList',
+              query: { category: category.name }
+            })
             }
-            router.push('/posts')                
           }"
         >
           <div class="category-circle">
@@ -428,30 +431,30 @@ const categories = [
   .category-header {
     padding: 0;
   }
-  
+
   .category-title {
     font-size: 1.2rem;
   }
-  
+
   .category-list {
     gap: 20px;
   }
-  
+
   .category-circle {
     width: 60px;
     height: 60px;
   }
-  
+
   .category-circle img {
     width: 28px;
     height: 28px;
   }
-  
+
   .category-circle::before {
     width: 20px;
     height: 20px;
   }
-  
+
   .category-name {
     font-size: 0.85rem;
   }
@@ -462,19 +465,23 @@ const categories = [
     padding: 25px 16px;
     margin: 30px 0;
   }
-  
+
   .category-list {
     gap: 16px;
   }
-  
+
   .category-circle {
     width: 55px;
     height: 55px;
   }
-  
+
   .category-circle img {
     width: 26px;
     height: 26px;
   }
+}
+.percent.over {
+  color: #00C851;   /* 메인컬러나 강조색 */
+  font-weight: bold;
 }
 </style>

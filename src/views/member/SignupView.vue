@@ -91,7 +91,7 @@
 import { reactive, ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import axios from '@/utils/axios'
 
 const router = useRouter()
 const signupFormRef = ref(null)

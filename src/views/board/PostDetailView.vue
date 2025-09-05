@@ -3,11 +3,12 @@ import { ref, onMounted, computed, watch, h } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { MoreOutlined } from '@ant-design/icons-vue'
-import { message, Modal } from 'ant-design-vue'   // ✅ Radio import 제거
+import { message, Modal } from 'ant-design-vue'
 import { useAuthStore } from '@/stores/auth'
 import { usePaymentStore } from '@/stores/payment'
 import { usePostStore } from '@/stores/post'
 import { useCommentStore } from '@/stores/comment'
+import dayjs from 'dayjs'
 
 const mainColor = '#00C851'
 const newComment = ref('')
@@ -49,6 +50,18 @@ const error = ref(null)
 
 // 로그인 상태
 const isLoggedIn = computed(() => auth.isLoggedIn)
+
+function formatDateOnly(dateString) {
+  return dayjs(dateString).format('YYYY.MM.DD')
+}
+
+const showAllDonors = ref(false)
+
+// 처음엔 기부자 5명만 보여주고, 더보기 누르면 전체
+const visibleDonors = computed(() => {
+  if (!post.value?.donors) return []
+  return showAllDonors.value ? post.value.donors : post.value.donors.slice(0, 5)
+})
 
 // 신고 사유(백엔드 Enum과 일치)
 const REPORT_REASONS = [
@@ -130,7 +143,8 @@ onMounted(async () => {
     }
     await loadComments()
   } catch (err) {
-    error.value = '게시글을 불러오는 중 오류가 발생했습니다.'
+    message.error(err?.response?.data?.message || '게시글을 불러오는 중 오류가 발생했습니다.')
+    router.replace('/posts')
   } finally {
     loading.value = false
   }
@@ -325,6 +339,11 @@ async function deletePost() {
           router.replace('/posts')
         } else if (err?.code === 'ERR_NETWORK') {
           message.error('서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.')
+        } else if (err?.response?.data?.message === '결제내역이 있는 게시물은 삭제할 수 없습니다.') {
+          Modal.warning({
+            title: '삭제할 수 없습니다',
+            content: '결제 내역이 있는 게시글은 삭제할 수 없습니다.',
+          })
         } else {
           message.error(err?.response?.data?.message || '삭제 중 오류가 발생했습니다.')
         }
@@ -469,101 +488,108 @@ function proceedToPayment() {
 
 <template>
   <div class="detail-root" v-if="post">
-    <!-- 상단 카테고리 뱃지 & 제목 -->
-    <div class="badge-row">
-      <span class="badge">{{ post.category }}</span>
-    </div>
-    <div class="title-row">
-      <h2 class="detail-title">{{ post.title }}</h2>
-      <a-dropdown v-if="canManage" placement="bottomRight">
-        <a class="ant-dropdown-link" @click.prevent>
-          <more-outlined style="font-size: 20px; cursor: pointer;" />
-        </a>
-        <template #overlay>
-          <a-menu>
-            <a-menu-item @click="editPost">수정하기</a-menu-item>
-            <a-menu-item danger @click="deletePost">삭제하기</a-menu-item>
-          </a-menu>
-        </template>
-      </a-dropdown>
-    </div>
-
-    <div class="main-row">
-      <div class="main-left">
-        <div v-if="post.imageUrls?.length" class="gallery">
-          <div class="main-view">
-            <img :src="activeImage" alt="main image" />
-          </div>
-          <div class="thumbs">
-            <img
-              v-for="img in post.imageUrls"
-              :key="img"
-              :src="img"
-              :alt="`첨부 이미지`"
-              :class="{ active: activeImage === img }"
-              @click="activeImage = img"
-            />
-          </div>
-        </div>
-        <!-- fallback -->
-        <div v-else class="img-wrap">
-          <img class="main-img" src="https://placehold.co/300x180" />
-        </div>
+    <!-- 헤더 영역 -->
+    <div class="header-section">
+      <div class="badge-row">
+        <span class="badge">{{ post.category }}</span>
       </div>
-
-      <div class="main-right">
-        <div class="progress-card">
-          <div class="progress-header">
-            <span>마감까지 {{ post.remaining }}원</span>
-            <span class="percent">{{ post.percent }}%</span>
-          </div>
-          <a-progress :percent="post.percent" :stroke-color="mainColor" :show-info="false" />
-          <div class="current">
-            {{ post.currentAmount ? post.currentAmount + '원 모금' : '---' }}
-          </div>
-          <div class="progress-info">
-            <div>모금 시작일 <span>{{ post.createdAt }}</span></div>
-            <div>모금목표 <span>{{ post.amount }}원</span></div>
-            <div>후원잔액까지 <span>{{ post.remaining }}원</span></div>
-            <div>총 참여인원 <span>{{ post.donorCount }}명</span></div>
-            <div v-if="post.overfunded > 0">초과모금 <span style="color: #00C851;">{{ post.overfunded }}원</span></div>
-            <div>마감까지 <span>{{ post.daysLeft }}일</span></div>
-          </div>
-          <a-button
-            type="primary"
-            class="donate-btn"
-            :style="{background: mainColor, borderColor: mainColor}"
-            @click="openDonationModal"
-            :disabled="post.status === 'COMPLETED' && !isAdmin"
-          >
-            <template v-if="post.status === 'COMPLETED' && !isAdmin">마감됨</template>
-            <template v-else-if="isAdmin">기부내역보기</template>
-            <template v-else>곧장기부하기</template>
-          </a-button>
-        </div>
+      <div class="title-row">
+        <h2 class="detail-title">{{ post.title }}</h2>
+        <a-dropdown v-if="canManage" placement="bottomRight">
+          <a class="ant-dropdown-link" @click.prevent>
+            <more-outlined style="font-size: 20px; cursor: pointer;" />
+          </a>
+          <template #overlay>
+            <a-menu>
+              <a-menu-item @click="editPost">수정하기</a-menu-item>
+              <a-menu-item danger @click="deletePost">삭제하기</a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
       </div>
     </div>
 
-    <!-- 상세 내용 -->
-    <div class="desc-section">
-      <div class="desc-title">
-        기부금이 <span style="color:#FFC107">곧장</span>
-      </div>
-      <div class="desc-box">
-        <div class="desc-block" v-html="post.content"></div>
-      </div>
-      <div class="stat-row">
-        <div class="stat-col" v-for="(s, idx) in post.stat" :key="idx">
-          <div class="stat-label">
-            <template v-if="idx === 0">미취학</template>
-            <template v-else-if="idx === 1">초등학교 저학년</template>
-            <template v-else-if="idx === 2">초등학교 고학년</template>
-            <template v-else>중학생 이상</template>
+    <!-- 메인 컨테이너 -->
+    <div class="main-container">
+      <!-- 왼쪽: 콘텐츠 영역 -->
+      <div class="content-area">
+        <!-- 사진 갤러리 -->
+        <div class="image-section">
+          <div v-if="post.imageUrls?.length" class="gallery">
+            <div class="main-view">
+              <img :src="activeImage" alt="main image" />
+            </div>
+            <div class="thumbs">
+              <img
+                v-for="img in post.imageUrls"
+                :key="img"
+                :src="img"
+                :alt="`첨부 이미지`"
+                :class="{ active: activeImage === img }"
+                @click="activeImage = img"
+              />
+            </div>
           </div>
-          <div class="stat-value">{{ s }}</div>
+          <!-- fallback -->
+          <div v-else class="img-wrap">
+            <img class="main-img" src="https://placehold.co/300x180" />
+          </div>
         </div>
-      </div>
-    </div>
+
+        <!-- 모금 소개 -->
+        <div class="desc-section">
+          <div class="desc-title">
+            모금소개
+          </div>
+          <div class="desc-box">
+            <div class="desc-block" v-html="post.content"></div>
+          </div>
+        </div>
+
+        <!-- 기부자 목록 -->
+        <div class="donor-section" v-if="post.donors && post.donors.length">
+          <div class="donor-stats">
+            <div>
+              <span class="label">모금목표</span>
+              <span class="value">{{ post.amount.toLocaleString() }}원</span>
+            </div>
+            <div>
+              <span class="label">모금현황</span>
+              <span class="value">{{ post.currentAmount.toLocaleString() }}원</span>
+            </div>
+            <div>
+              <span class="label">모금완료까지</span>
+              <span class="value highlight">{{ post.remaining.toLocaleString() }}원</span>
+            </div>
+          </div>
+
+          <ul class="donor-list">
+            <li v-for="donor in visibleDonors" :key="donor.id" class="donor-item">
+              <div class="donor-left">
+                <img
+                  v-if="donor.pictureUrl"
+                  :src="donor.pictureUrl"
+                  alt="프로필"
+                  class="donor-avatar"
+                />
+                <div class="donor-info">
+                  <div class="donor-name">{{ donor.name }}</div>
+                  <div class="donor-date">{{ formatDateOnly(donor.createdAt) }}</div>
+                </div>
+              </div>
+              <div class="donor-amount">
+                {{ donor.amount.toLocaleString() }}원
+              </div>
+            </li>
+          </ul>
+
+          <div v-if="post.donors.length > 5" class="donor-more">
+            <a-button type="text" @click="showAllDonors = !showAllDonors">
+              {{ showAllDonors ? '접기 ▲' : '더보기 ▼' }}
+            </a-button>
+          </div>
+        </div>
+
 
     <!-- 댓글/한마디 영역 -->
     <div class="comment-section">
@@ -650,7 +676,6 @@ function proceedToPayment() {
           </div>
 
           <div class="comment-content">{{ c.content }}</div>
-
           <div class="comment-actions">
             <!-- 좋아요 버튼 -->
             <button
@@ -665,7 +690,7 @@ function proceedToPayment() {
               <span class="count">{{ c.likeCount || 0 }}</span>
             </button>
 
-            <!-- 신고 -->
+            <!-- 신고 버튼 -->
             <template v-if="!c.alreadyReported">
               <button
                 class="report-btn"
@@ -683,7 +708,7 @@ function proceedToPayment() {
         </li>
       </ul>
 
-      <!-- ✅ 더보기 -->
+      <!-- 더보기 버튼 -->
       <div v-if="!commentStore.last && safeComments.length > 0" class="more-row">
         <a-button @click="onLoadMore" :loading="commentStore.loadingMore" block>
           더보기
@@ -691,22 +716,69 @@ function proceedToPayment() {
       </div>
     </div>
 
-    <!-- 신고 모달: 컨트롤드 -->
-    <a-modal
-      v-model:open="reportModalVisible"
-      title="이 댓글을 신고하시겠습니까?"
-      :confirm-loading="submittingReport"
-      @ok="submitReport"
-      ok-text="신고"
-      cancel-text="취소"
-    >
-      <a-radio-group v-model:value="selectedReason" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
-        <a-radio v-for="r in REPORT_REASONS" :key="r.value" :value="r.value">{{ r.label }}</a-radio>
-      </a-radio-group>
-      <div style="margin-top:10px;color:#999;font-size:12px;">
-        허위 신고 시 이용 제한될 수 있습니다.
-      </div>
-    </a-modal>
+        <!-- 오른쪽: 모금 정보 (Sticky) -->
+        <div class="sidebar-area">
+          <div class="progress-card sticky-card">
+            <!-- 게이지 위 영역 -->
+            <div class="progress-header">
+              <div class="left">
+                <div class="goal">목표 {{ post.amount.toLocaleString() }}원</div>
+                <div class="current">{{ post.currentAmount.toLocaleString() }}원 모금</div>
+              </div>
+              <div class="right">
+                <span class="percent">{{ Math.trunc(post.percentRaw) }}%</span>
+              </div>
+            </div>
+
+            <!-- 게이지 -->
+            <a-progress :percent="post.percent" :stroke-color="mainColor" :show-info="false" />
+
+            <!-- 게이지 아래 왼쪽 하단 -->
+            <div class="progress-footer">
+              <span class="start">모금 시작일 {{ formatDateOnly(post.createdAt) }}</span>
+            </div>
+            <br/>
+            <div class="progress-info">
+              <div>모금목표 <span>{{ post.amount }}원</span></div>
+              <div v-if="post.overfunded > 0">
+                초과모금 <span style="color: #00C851;">{{ post.overfunded }}원</span>
+              </div>
+              <div v-else>
+                후원잔액까지 <span>{{ post.remaining }}원</span>
+              </div>
+              <div>총 참여인원 <span>{{ post.donorCount }}명</span></div>
+              <div>마감까지 <span>{{ post.daysLeft }}일</span></div>
+            </div>
+            <a-button
+              type="primary"
+              class="donate-btn"
+              :style="{background: mainColor, borderColor: mainColor}"
+              @click="openDonationModal"
+              :disabled="post.status === 'COMPLETED' && !isAdmin"
+            >
+              <template v-if="post.status === 'COMPLETED' && !isAdmin">마감됨</template>
+              <template v-else-if="isAdmin">기부내역보기</template>
+              <template v-else>기부하기</template>
+            </a-button>
+          </div>
+        </div>
+
+        <!-- 신고 모달 -->
+        <a-modal
+          v-model:open="reportModalVisible"
+          title="이 댓글을 신고하시겠습니까?"
+          :confirm-loading="submittingReport"
+          @ok="submitReport"
+          ok-text="신고"
+          cancel-text="취소"
+        >
+          <a-radio-group v-model:value="selectedReason" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+            <a-radio v-for="r in REPORT_REASONS" :key="r.value" :value="r.value">{{ r.label }}</a-radio>
+          </a-radio-group>
+          <div style="margin-top:10px;color:#999;font-size:12px;">
+            허위 신고 시 이용 제한될 수 있습니다.
+          </div>
+        </a-modal>
 
     <!-- 기부 모달 -->
     <a-modal
@@ -861,22 +933,15 @@ function proceedToPayment() {
 .report-btn:hover { background: #fff7f0; }
 
 .detail-root {
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 10px 60px 10px;
+  padding: 40px 20px;
   font-family: 'Noto Sans KR', sans-serif;
 }
 
-.title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.detail-title {
-  font-size: 21px;
-  font-weight: 700;
-  margin: 0;
+/* 헤더 영역 */
+.header-section {
+  margin-bottom: 32px;
 }
 
 .badge-row {
@@ -894,18 +959,44 @@ function proceedToPayment() {
   font-weight: 500;
 }
 
-.main-row {
+.title-row {
   display: flex;
-  gap: 28px;
-  align-items: flex-start;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.main-left {
-  flex: 1 1 350px;
+.detail-title {
+  font-size: 26px;       /* 조금 더 큼직하게 */
+  font-weight: 700;
+  margin: 0 0 12px 0;    /* 아래쪽에 공간 추가 */
+  line-height: 1.3;      /* 여러 줄 제목도 읽기 좋게 */
 }
 
-.main-right {
+/* 메인 컨테이너 */
+.main-container {
+  display: flex;
+  gap: 40px;
+}
+
+/* 왼쪽 콘텐츠 영역 */
+.content-area {
+  flex: 1;
+  max-width: calc(100% - 350px);
+}
+
+/* 오른쪽 사이드바 */
+.sidebar-area {
   flex: 0 0 310px;
+}
+
+.sticky-card {
+  position: sticky;
+  top: 20px;
+}
+
+/* 이미지 섹션 */
+.image-section {
+  margin-bottom: 44px;
 }
 
 .img-wrap {
@@ -924,148 +1015,10 @@ function proceedToPayment() {
   border-radius: 16px;
 }
 
-.progress-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 26px 18px 22px 18px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
-}
-
-.progress-header {
-  font-size: 17px;
-  margin-bottom: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.percent {
-  font-size: 22px;
-  font-weight: 800;
-  color: #00C851;
-}
-
-.current {
-  margin: 10px 0 14px 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #222;
-}
-
-.progress-info {
-  margin-bottom: 22px;
-  font-size: 14px;
-  color: #888;
-  line-height: 1.7;
-}
-
-.progress-info span {
-  float: right;
-  color: #111;
-  font-weight: 500;
-}
-
-.donate-btn {
-  width: 100%;
-  height: 46px;
-  font-size: 17px;
-  font-weight: bold;
-}
-
-.desc-section {
-  margin-top: 44px;
-  background: #FCFCF6;
-  border-radius: 18px;
-  padding: 32px 22px 24px 22px;
-}
-
-.desc-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 16px;
-}
-
-.desc-box {
-  display: flex;
-  gap: 30px;
-  font-size: 14px;
-  color: #444;
-  margin-bottom: 24px;
-}
-
-.desc-block {
-  flex: 1;
-  min-width: 180px;
-  line-height: 1.6;
-}
-
-.stat-row {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 10px;
-  background: #fff;
-  border-radius: 10px;
-  padding: 20px 10px;
-  gap: 12px;
-}
-
-.stat-col {
-  text-align: center;
-  flex: 1;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #888;
-  margin-bottom: 5px;
-}
-
-.stat-value {
-  font-size: 20px;
-  color: #00C851;
-  font-weight: 700;
-}
-
-.comment-section {
-  margin-top: 54px;
-}
-
-.comment-title {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 18px;
-}
-
-.comment-input-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 14px;
-}
-
-.comment-count {
-  margin-bottom: 10px;
-  color: #333;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.no-comments {
-  color: #bbb;
-  padding: 30px 0 20px 0;
-  font-size: 15px;
-  text-align: center;
-}
-
-.comment-list {
-  margin: 0;
-  padding: 0 0 14px 0;
-  list-style: none;
-}
-
 /* 갤러리 */
 .gallery .main-view img {
   width: 100%;
-  height: 300px;
+  height: 400px;
   object-fit: cover;
   border-radius: 12px;
 }
@@ -1090,4 +1043,413 @@ function proceedToPayment() {
   border: 2px solid #00C851;
   opacity: 1;
 }
+
+/* 모금 정보 카드 */
+.progress-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 26px 18px 22px 18px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+
+.progress-header .goal {
+  font-size: 12px;
+  color: #888;
+  margin-bottom:4px;
+}
+
+.progress-header .current {
+  font-size: 16px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 2px;
+}
+
+.progress-header .percent {
+  font-size: 20px;
+  font-weight: 800;
+  color: #00C851;
+  line-height: 1;
+  margin-bottom: 0;
+}
+
+.progress-footer {
+  margin-top: 0px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.progress-footer .start {
+  font-size: 12px;
+  color: #aaa;
+}
+
+.progress-info {
+  margin-bottom: 22px;
+  font-size: 14px;
+  color: #888;
+  line-height: 1.7;
+}
+
+.progress-info span {
+  float: right;
+  color: #111;
+  font-weight: 500;
+}
+
+.donate-btn {
+  width: 100%;
+  height: 46px;
+  font-size: 17px;
+  font-weight: bold;
+}
+
+/* 모금 소개 섹션 */
+.desc-section {
+  margin-bottom: 54px;
+  background: #FCFCF6;
+  border-radius: 18px;
+  padding: 32px 22px 24px 22px;
+}
+
+.desc-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.desc-box {
+  display: flex;
+  gap: 30px;
+  font-size: 14px;
+  color: #444;
+  margin-bottom: 24px;
+}
+
+.desc-block {
+  flex: 1;
+  min-width: 180px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* 댓글 섹션 */
+.comment-section {
+  /* margin-top은 desc-section에서 margin-bottom으로 처리 */
+}
+
+.comment-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+
+.comment-input-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.comment-count {
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.comment-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.comment-error {
+  margin-bottom: 16px;
+}
+
+.no-comments {
+  color: #bbb;
+  padding: 30px 0 20px 0;
+  font-size: 15px;
+  text-align: center;
+}
+
+.comment-list {
+  margin: 0;
+  padding: 0 0 14px 0;
+  list-style: none;
+}
+
+.comment-item {
+  background: #f6f6f6;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.comment-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.author-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.comment-date {
+  color: #888;
+  font-size: 12px;
+}
+
+.comment-content {
+  color: #444;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.like-btn,
+.report-btn {
+  font-size: 12px;
+  color: #555;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 14px;
+  transition: all 0.2s;
+  border: 1px solid #eee;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.like-btn[aria-pressed="true"] {
+  border-color:#ff6b81;
+}
+
+.like-btn:hover {
+  background: #fff7f8;
+}
+
+.report-btn:hover {
+  background: #fff7f0;
+}
+
+/* 기부 모달 스타일 */
+.donation-modal {
+  padding: 20px 0;
+}
+
+.modal-post-info {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.modal-post-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-description {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.amount-section {
+  margin-bottom: 24px;
+}
+
+.amount-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.quick-amounts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.quick-amount-btn {
+  padding: 12px 8px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.quick-amount-btn:hover {
+  border-color: #00C851;
+}
+
+.quick-amount-btn.active {
+  background: #00C851;
+  border-color: #00C851;
+  color: white;
+}
+
+.selected-amount {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f6f6f6;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.amount-display {
+  font-size: 18px;
+  font-weight: 600;
+  color: #00C851;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+  .main-container {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .content-area {
+    max-width: 100%;
+  }
+
+  .sidebar-area {
+    flex: none;
+  }
+
+  .sticky-card {
+    position: static;
+  }
+
+  .quick-amounts {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.donor-section {
+  margin-bottom: 40px;
+  background: #fdfdfd;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.donor-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.donor-stats .label {
+  color: #888;
+  margin-right: 4px;
+  font-size: 15px;
+}
+
+.donor-stats .value {
+  font-weight: 600;
+  color: #222;
+  font-size: 18px;
+}
+
+.donor-stats .highlight {
+  color: #00C851;
+  font-size: 18px;
+}
+
+.donor-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.donor-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.donor-item:last-child {
+  border-bottom: none;
+}
+
+.donor-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.donor-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.donor-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.donor-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.donor-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.donor-amount {
+  font-weight: 700;
+  color: #222;
+}
+
+.donor-more {
+  text-align: center;
+  margin-top: 12px;
+}
+
 </style>

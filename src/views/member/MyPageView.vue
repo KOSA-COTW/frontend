@@ -121,7 +121,7 @@ import { onMounted, reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { message } from 'ant-design-vue'
-import axios from 'axios'
+import axios from '@/utils/axios'
 import PaymentHistoryView from '@/views/payment/PaymentHistoryView.vue'
 
 const router = useRouter()
@@ -181,9 +181,7 @@ const referralLink = computed(() =>
 const information = async () => {
   loading.value = true
   try {
-    const user = localStorage.getItem('auth')
-    const accessToken = user ? JSON.parse(user).accessToken : null
-    const { data: info } = await axios.get('/api/info', { headers: { Authorization: `Bearer ${accessToken}` } })
+    const { data: info } = await axios.get('/api/info')
 
     userInfo.email = info.email ?? null
     userInfo.name = info.name ?? null
@@ -221,10 +219,7 @@ const handleDelete = async () => {
   if (!deletePassword.value) return
   deleteLoading.value = true; deleteError.value = ''
   try {
-    const user = localStorage.getItem('auth')
-    const accessToken = user ? JSON.parse(user).accessToken : null
-    // 프로젝트 컨벤션에 맞춰 POST 사용
-    await axios.post('/api/deactivate', { password: deletePassword.value }, { headers: { Authorization: `Bearer ${accessToken}` } })
+    await axios.post('/api/deactivate', { password: deletePassword.value })
     message.success('계정이 삭제되었습니다. 그동안 이용해 주셔서 감사합니다.')
     closeDeleteModal(); auth.logout(); router.replace('/')
   } catch (e) {
@@ -254,14 +249,14 @@ onMounted(information)
 
 <style scoped>
 /* 우측 콘텐츠 전용 스타일 (사이드바 관련 코드/스타일 제거) */
-.mypage-content { 
-  padding: 16px 24px; 
+.mypage-content {
+  padding: 16px 24px;
   width: 100%;
 }
 
-.top-card, .donation-card { 
-  border-radius: 16px; 
-  padding: 32px 36px; 
+.top-card, .donation-card {
+  border-radius: 16px;
+  padding: 32px 36px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   border: 1px solid #f0f0f0;
 }
@@ -328,18 +323,18 @@ onMounted(information)
     padding: 16px 20px;
     max-width: none;
   }
-  
-  .top-card, .donation-card { 
+
+  .top-card, .donation-card {
     padding: 24px 20px;
   }
-  
+
   .top-section { grid-template-columns: 1fr; justify-items: center; text-align: center; }
   .header-line { flex-direction: column; align-items: center; }
   .link-buttons { justify-content: center; }
   .invite-summary { flex-direction: column; gap: 6px; }
   .donation-summary { flex-direction: column; align-items: center; text-align: center; gap: 8px; }
   .count { text-align: center; }
-  
+
   /* 모바일에서 PaymentHistoryView 통계 카드 1열로 배치 */
   .mypage-content :deep(.payment-history .stats-grid) {
     grid-template-columns: 1fr;
