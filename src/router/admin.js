@@ -15,7 +15,7 @@ export const adminRoutes = [
   {
     path: '/admin/board/posts',
     name: 'adminBoardPosts',
-    component: () => import('@/views/admin/board/PostListView.vue'),
+    component: () => import('@/views/admin/board/PendingPostListView.vue'),
     meta: { requiresAdmin: true }
   },
   {
