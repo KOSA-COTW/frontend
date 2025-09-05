@@ -13,6 +13,13 @@ const mainColor = '#00C851'
 const newComment = ref('')
 const activeImage = ref('')
 
+// ✅ 댓글 정렬 옵션/상태
+const sortOptions = [
+  { label: '최신순', value: 'LATEST' },
+  { label: '응원순', value: 'LIKE' },
+]
+const sortLocal = ref('LATEST')
+
 // 기부 모달 상태
 const donationModalVisible = ref(false)
 const donationAmount = ref(10000)
@@ -45,10 +52,14 @@ const isLoggedIn = computed(() => auth.isLoggedIn)
 
 // 신고 사유(백엔드 Enum과 일치)
 const REPORT_REASONS = [
-  { label: '스팸', value: 'SPAM' },
-  { label: '욕설/비방', value: 'ABUSE' },
-  { label: '부적절한 내용', value: 'INAPPROPRIATE' },
+  { label: '스팸/광고', value: 'SPAM' },
+  { label: '욕설/괴롭힘', value: 'ABUSE' },
+  { label: '부적절/선정', value: 'INAPPROPRIATE' },
+  { label: '개인정보 노출', value: 'PERSONAL_INFO' },
+  { label: '불법/범죄', value: 'ILLEGAL' },
+  { label: '기타', value: 'ETC' },
 ]
+
 
 // 댓글 권한 확인
 const isAdmin = computed(() => {
@@ -104,8 +115,6 @@ const canManageComment = (comment) => {
   return false
 }
 
-
-
 // 비공개 댓글은 작성자/관리자만 보이게
 const safeComments = computed(() =>
   (comments.value || [])
@@ -130,6 +139,7 @@ onMounted(async () => {
 async function loadComments(id = postId.value) {
   try {
     await commentStore.fetchComments(id, 'LATEST')
+    sortLocal.value = commentStore.sortMode
   } catch (err) {
     console.error('[댓글] 목록 조회 실패:', err)
     if (err?.response?.status === 401) {
@@ -138,6 +148,17 @@ async function loadComments(id = postId.value) {
       message.error('댓글을 불러오는데 실패했습니다.')
     }
   }
+}
+
+// ✅ 정렬 전환
+async function onChangeSort(v) {
+  await commentStore.fetchComments(postId.value, v)
+  sortLocal.value = v
+}
+
+// ✅ 더보기
+async function onLoadMore() {
+  await commentStore.loadMore(postId.value)
 }
 
 // 라우트 id 변경 시 갱신
@@ -550,6 +571,16 @@ function proceedToPayment() {
         따뜻한 <span style="color:#FFC107;">한마디</span>
       </div>
 
+      <!-- ✅ 정렬 탭 -->
+      <div class="comment-toolbar">
+        <a-segmented
+          v-model:value="sortLocal"
+          :options="sortOptions"
+          @change="onChangeSort"
+          size="small"
+        />
+      </div>
+
       <!-- 댓글 입력 -->
       <div class="comment-input-row">
         <a-input
@@ -573,7 +604,7 @@ function proceedToPayment() {
       </div>
 
       <div class="comment-count">
-        댓글 <span style="color:#00C851;">{{ safeComments.length }}</span>
+        댓글 <span style="color:#00C851;">{{ commentStore.totalCount }}</span>
       </div>
 
       <div v-if="commentsLoading && safeComments.length === 0" class="comment-loading">
@@ -621,6 +652,7 @@ function proceedToPayment() {
           <div class="comment-content">{{ c.content }}</div>
 
           <div class="comment-actions">
+            <!-- 좋아요 버튼 -->
             <button
               class="like-btn"
               :disabled="commentStore.likeLoading?.has?.(c.id)"
@@ -633,18 +665,30 @@ function proceedToPayment() {
               <span class="count">{{ c.likeCount || 0 }}</span>
             </button>
 
-            <button
-              class="report-btn"
-              :disabled="commentStore.reportLoading?.has?.(c.id)"
-              @click="openReport(c)"
-              title="신고하기"
-            >
-              🚩 신고 <span v-if="c.reportCount">({{ c.reportCount }})</span>
-            </button>
+            <!-- 신고 -->
+            <template v-if="!c.alreadyReported">
+              <button
+                class="report-btn"
+                :disabled="commentStore.reportLoading?.has?.(c.id)"
+                @click="openReport(c)"
+                title="신고하기"
+              >
+                🚩 신고
+              </button>
+            </template>
+            <template v-else>
+              <span class="report-label">🚩 신고됨</span>
+            </template>
           </div>
-
         </li>
       </ul>
+
+      <!-- ✅ 더보기 -->
+      <div v-if="!commentStore.last && safeComments.length > 0" class="more-row">
+        <a-button @click="onLoadMore" :loading="commentStore.loadingMore" block>
+          더보기
+        </a-button>
+      </div>
     </div>
 
     <!-- 신고 모달: 컨트롤드 -->
@@ -730,6 +774,16 @@ function proceedToPayment() {
 </template>
 
 <style scoped>
+.comment-toolbar {
+  display:flex;
+  justify-content:flex-end;
+  margin: 6px 0 10px;
+}
+
+.more-row {
+  margin-top: 8px;
+}
+
 .comment-loading {
   display: flex;
   align-items: center;

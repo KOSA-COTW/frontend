@@ -10,7 +10,7 @@
       <a-col :span="10">
         <a-card title="게시글 승인 관리" hoverable>
           <p>승인 대기 중인 기부 게시글을 검토하고 승인/반려할 수 있습니다.</p>
-          <a-button type="primary" size="large" block @click="goToPostList">
+          <a-button class="btn-outline" size="large" block @click="goToPostList">
             승인 관리
           </a-button>
         </a-card>
@@ -19,7 +19,7 @@
       <a-col :span="10">
         <a-card title="전체 게시글 관리" hoverable>
           <p>모든 기부 게시글을 조회하고 공개/비공개, 삭제 등을 관리합니다.</p>
-          <a-button type="primary" size="large" block @click="goToStatusManagement">
+          <a-button class="btn-outline" size="large" block @click="goToStatusManagement">
             전체 게시글 관리
           </a-button>
         </a-card>
@@ -36,7 +36,6 @@ import { onMounted } from 'vue'
 const router = useRouter()
 const authStore = useAuthStore()
 
-// onMounted에서 권한 체크 제거 - 라우터 가드에서 처리
 onMounted(() => {
   // 관리자 권한은 라우터 가드에서 체크됨
 })
@@ -54,15 +53,31 @@ const goToStatusManagement = () => {
 .admin-board-page {
   padding: 24px;
   min-height: calc(100vh - 140px);
+  --brand: #00C851; /* 브랜드 컬러 */
 }
 
-.ant-card {
-  height: 100%;
-}
-
+.ant-card { height: 100%; }
 .ant-card-body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+/* ✅ 아웃라인 버튼 (연두색 테두리/텍스트만) */
+.btn-outline {
+  background: transparent !important;
+  color: var(--brand) !important;
+  border: 2px solid var(--brand) !important;
+  border-radius: 10px;
+  font-weight: 700;
+}
+.btn-outline:hover,
+.btn-outline:focus {
+  background: rgba(0, 200, 81, 0.06) !important;
+  color: var(--brand) !important;
+  border-color: var(--brand) !important;
+}
+.btn-outline:active {
+  background: rgba(0, 200, 81, 0.12) !important;
 }
 </style>

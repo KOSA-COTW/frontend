@@ -1,48 +1,76 @@
 // stores/comment.js
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { commentAPI } from '@/utils/comment'
 
 export const useCommentStore = defineStore('comment', () => {
   const comments = ref([])
+  const totalCount = ref(0)
   const loading = ref(false)
+  const loadingMore = ref(false)
   const error = ref(null)
 
-  // 액션 로딩 세트 (중복 클릭 방지)
-  const likeLoading = ref(new Set())     // commentId 저장
-  const reportLoading = ref(new Set())   // commentId 저장
+  // 새로 추가된 상태
+  const sortMode = ref('LATEST')   // 'LATEST' | 'LIKE'
+  const page = ref(0)
+  const size = ref(10)             // ✅ 요청당 10개
+  const last = ref(false)          // 마지막 페이지 여부
 
-  // 목록 가져오기
-  const fetchComments = async (postId, sort = 'LATEST') => {
-    loading.value = true
+  const likeLoading = ref(new Set())
+  const reportLoading = ref(new Set())
+
+  // 내부 공통 fetch (append 여부로 분기)
+  const _fetch = async (postId, sort = sortMode.value, pageNo = page.value, append = false) => {
+    const busy = append ? loadingMore : loading
+    busy.value = true
     error.value = null
     try {
-      const page = await commentAPI.getComments(postId, sort)
-      const content = page?.content ?? page // Page or Array 모두 대응
-      comments.value = Array.isArray(content) ? content : []
+      const res = await commentAPI.getComments(postId, sort, pageNo, size.value)
+      const list = res?.content ?? (Array.isArray(res) ? res : [])
+      totalCount.value = res?.totalElements ?? list.length
+      last.value = !!res?.last || (list.length < size.value)
+
+      comments.value = append ? [...comments.value, ...list] : list
     } catch (err) {
-      error.value = err.response?.data?.message || '댓글을 불러오는데 실패했습니다.'
-      comments.value = []
+      error.value = err?.response?.data?.message || '댓글을 불러오는데 실패했습니다.'
+      if (!append) {
+        comments.value = []
+        totalCount.value = 0
+        last.value = true
+      }
       throw err
     } finally {
-      loading.value = false
+      busy.value = false
     }
   }
 
-  // 작성 (작성 후 전체 재조회)
+  // 최초/정렬 변경 시 호출
+  const fetchComments = async (postId, sort = 'LATEST') => {
+    sortMode.value = sort
+    page.value = 0
+    last.value = false
+    await _fetch(postId, sort, 0, false)
+  }
+
+  // 더보기
+  const loadMore = async (postId) => {
+    if (last.value || loadingMore.value) return
+    page.value += 1
+    await _fetch(postId, sortMode.value, page.value, true)
+  }
+
+  // 작성 (리스트 초기화해서 현재 정렬 기준으로 다시 1페이지 로드)
   const addComment = async (postId, content) => {
     if (!content?.trim()) throw new Error('댓글 내용을 입력해주세요.')
     try {
-      const res = await commentAPI.createComment(postId, content.trim())
-      await fetchComments(postId)
-      return res
+      await commentAPI.createComment(postId, content.trim())
+      await fetchComments(postId, sortMode.value) // ✅ 현재 정렬 유지
     } catch (err) {
       error.value = err.response?.data?.message || '댓글 작성에 실패했습니다.'
       throw err
     }
   }
 
-  // 수정 (낙관적 적용)
   const updateComment = async (commentId, content) => {
     try {
       const updated = await commentAPI.updateComment(commentId, content)
@@ -55,18 +83,17 @@ export const useCommentStore = defineStore('comment', () => {
     }
   }
 
-  // 삭제
   const deleteComment = async (commentId) => {
     try {
       await commentAPI.deleteComment(commentId)
       comments.value = comments.value.filter(c => c.id !== commentId)
+      totalCount.value = Math.max(0, totalCount.value - 1)
     } catch (err) {
       error.value = err.response?.data?.message || '댓글 삭제에 실패했습니다.'
       throw err
     }
   }
 
-  // 좋아요 토글 (멱등 + 낙관적 업데이트)
   const toggleLike = async (commentId) => {
     if (likeLoading.value.has(commentId)) return
     likeLoading.value.add(commentId)
@@ -78,7 +105,6 @@ export const useCommentStore = defineStore('comment', () => {
     const likedNext = !before.liked
     const likeDelta = likedNext ? +1 : -1
 
-    // 낙관적 반영
     comments.value[idx] = {
       ...before,
       liked: likedNext,
@@ -89,7 +115,6 @@ export const useCommentStore = defineStore('comment', () => {
       if (likedNext) await commentAPI.like(commentId)
       else await commentAPI.unlike(commentId)
     } catch (err) {
-      // 롤백
       comments.value[idx] = before
       throw err
     } finally {
@@ -97,7 +122,6 @@ export const useCommentStore = defineStore('comment', () => {
     }
   }
 
-  // 신고 (낙관적 + 롤백)
   const reportComment = async (commentId, reason) => {
     if (reportLoading.value.has(commentId)) return
     reportLoading.value.add(commentId)
@@ -108,17 +132,20 @@ export const useCommentStore = defineStore('comment', () => {
     const before = comments.value[idx]
     comments.value[idx] = {
       ...before,
-      reportCount: (before.reportCount ?? 0) + 1
+      reportCount: (before.reportCount ?? 0) + 1,
+      alreadyReported: true,
     }
 
     try {
-      await commentAPI.report(commentId, reason)
-      // 백엔드 정책상 isPublic=false로 내려오면 재조회나 제거를 고려
-      // if (comments.value[idx]?.isPublic === false) {
-      //   comments.value.splice(idx, 1)
-      // }
+      const res = await commentAPI.report(commentId, reason)
+      comments.value[idx] = {
+        ...comments.value[idx],
+        reportCount: res?.totalReportCount ?? comments.value[idx].reportCount,
+        alreadyReported: true,
+        isPublic: res?.hidden !== undefined ? !res.hidden : comments.value[idx].isPublic,
+        moderationDueAt: res?.moderationDue ?? comments.value[idx].moderationDueAt,
+      }
     } catch (err) {
-      // 롤백
       comments.value[idx] = before
       error.value = err.response?.data?.message || '신고 처리에 실패했습니다.'
       throw err
@@ -130,17 +157,12 @@ export const useCommentStore = defineStore('comment', () => {
   const clearError = () => { error.value = null }
 
   return {
-    comments,
-    loading,
-    error,
-    likeLoading,
-    reportLoading,
-    fetchComments,
-    addComment,
-    updateComment,
-    deleteComment,
-    toggleLike,
-    reportComment,
-    clearError,
+    // state
+    comments, totalCount, loading, loadingMore, error,
+    sortMode, page, size, last,
+    likeLoading, reportLoading,
+    // actions
+    fetchComments, loadMore, addComment, updateComment, deleteComment,
+    toggleLike, reportComment, clearError,
   }
 })
