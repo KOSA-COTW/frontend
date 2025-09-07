@@ -28,7 +28,7 @@
       <a-col :span="8">
         <a-card title="통계" hoverable>
           <p>사이트 이용 통계를 확인합니다.</p>
-          <a-button type="primary" size="large" block>
+          <a-button type="primary" size="large" block @click="goToStats">
             통계 보기
           </a-button>
         </a-card>
@@ -56,6 +56,10 @@ const goToBoardManagement = () => {
 
 const goToCommentManagement = () => {
   router.push('/admin/comments')
+}
+
+const goToStats = () => {
+  router.push('/admin/stats')
 }
 </script>
 
