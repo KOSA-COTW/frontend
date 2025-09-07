@@ -156,7 +156,7 @@ const statusLabel = (s) => ({
 }[s] ?? s)
 
 const allDonationsColumns = [
-  { title: 'ID', dataIndex: 'id', width: 80 },
+  { title: '이메일', dataIndex: 'memberEmail', width: 200, ellipsis: true },
   { title: '기부자', dataIndex: 'member', width: 140 },
   { title: '게시글', dataIndex: 'post', width: 300, ellipsis: true },
   { title: '금액', key: 'amount', width: 120, align: 'right' },
