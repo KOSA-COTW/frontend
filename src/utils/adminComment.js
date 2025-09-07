@@ -1,4 +1,4 @@
-// src/utils/apiAdminComment.js
+
 import api from '@/utils/axios' // 공용 axios (response.data만 반환)
 
 export const adminCommentAPI = {

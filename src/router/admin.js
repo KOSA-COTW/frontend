@@ -1,4 +1,3 @@
-// 관리자 관련 라우트 (중첩: /admin + children)
 export const adminRoutes = [
   {
     path: '/admin',
@@ -49,17 +48,18 @@ export const adminRoutes = [
         meta: { requiresAdmin: true }
       },
       {
-        path: 'board/posts',
+        path: 'board/pending_posts', // ✅ 비공개/승인 대기 게시글
         name: 'adminBoardPosts',
-        component: () => import('@/views/admin/board/PostListView.vue'),
+        component: () => import('@/views/admin/board/PendingPostListView.vue'),
         meta: { requiresAdmin: true }
       },
       {
-        path: 'board/public_posts',
+        path: 'board/public_posts', // ✅ 전체(공개) 게시글
         name: 'adminBoardPublicPosts',
         component: () => import('@/views/admin/board/PublicPostListView.vue'),
         meta: { requiresAdmin: true }
       },
+
 
       // 댓글 관리
       {
@@ -78,7 +78,7 @@ export const adminRoutes = [
         props: true
       },
 
-      // 통계/리포트
+      // 통계
       {
         path: 'stats',
         name: 'adminStats',

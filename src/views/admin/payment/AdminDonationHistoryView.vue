@@ -105,7 +105,7 @@
 
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
-import { getDashboardStats, getTopDonors, getDonations } from '@/utils/apiAdminDonation'
+import { getDashboardStats, getTopDonors, getDonations } from '@/utils/adminDonation.js'
 
 const loading = ref(false)
 const totalAmount = ref(0)
@@ -134,7 +134,12 @@ const donorColumns = [
 ]
 
 // 문자열 ISO(yyyy-MM-ddTHH:mm:ss) → 공백으로 보기 좋게
-const formatDateTime = (v) => (typeof v === 'string' ? v.replace('T', ' ') : v)
+// 문자열 ISO(yyyy-MM-ddTHH:mm:ss) → yyyy-MM-dd HH:mm:ss
+const formatDateTime = (v) => {
+  if (typeof v !== 'string') return v
+  return v.replace('T', ' ').slice(0, 19)
+}
+
 
 // ✅ 결제수단/상태 한국어 라벨 매핑
 const methodLabel = (m) => ({

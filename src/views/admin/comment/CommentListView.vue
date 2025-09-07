@@ -6,7 +6,7 @@
         <h1 class="title">
           <span class="accent-dot"></span> 댓글 관리
         </h1>
-        <p class="subtitle">신고·숨김·SLA 한눈에, 빠른 일괄 처리</p>
+        <p class="subtitle">신고·숨김·, 빠른 일괄 처리</p>
       </div>
       <div class="rhs">
         <a-button type="default" @click="reload" :loading="loading">새로고침</a-button>
@@ -233,7 +233,7 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import { debounce } from 'lodash-es'
-import { adminCommentAPI } from '@/utils/apiAdminComment'
+import { adminCommentAPI } from '@/utils/adminComment.js'
 
 export default {
   name: 'AdminCommentListView',

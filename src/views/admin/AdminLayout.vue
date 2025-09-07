@@ -9,21 +9,22 @@
 
         <!-- 회원/단체 관리 -->
         <a-sub-menu key="member">
-          <template #title>회원/단체 관리</template>
+          <template #title>회원 관리</template>
           <a-menu-item key="member-info">회원 정보 관리</a-menu-item>
         </a-sub-menu>
 
         <!-- 기부/결제 관리 -->
         <a-sub-menu key="donation">
-          <template #title>기부/결제 관리</template>
+          <template #title>기부내역 관리</template>
           <a-menu-item key="donation-history">전체 기부 내역</a-menu-item>
-          <a-menu-item key="payment-status">결제 현황</a-menu-item>
+
+
         </a-sub-menu>
 
         <!-- 게시글 관리 -->
         <a-sub-menu key="board">
           <template #title>게시글 관리</template>
-          <a-menu-item key="post-approval">게시글 승인 관리</a-menu-item>
+          <a-menu-item key="post-approval">비공개 게시글 관리</a-menu-item>
           <a-menu-item key="post-all">전체 게시글 관리</a-menu-item>
         </a-sub-menu>
 
@@ -33,10 +34,13 @@
           <a-menu-item key="comment-list">댓글 목록</a-menu-item>
         </a-sub-menu>
 
+        <!-- 통계/리포트 -->
+        <a-sub-menu key="stats">
+          <template #title>통계</template>
 
-
-
-
+          <a-menu-item key="donation-top10">상위 10 기부자</a-menu-item>
+          <a-menu-item key="category-ranking">카테고리별 순위</a-menu-item>
+        </a-sub-menu>
       </a-menu>
     </a-layout-sider>
 
@@ -68,12 +72,10 @@ watch(
     else if (name === 'adminMemberInfo') selectedKey.value = 'member-info'
     else if (name === 'adminDonationHistory') selectedKey.value = 'donation-history'
     else if (name === 'adminPaymentStatus') selectedKey.value = 'payment-status'
-    else if (name === 'adminNewsNotice') selectedKey.value = 'news-notice'
-    else if (name === 'adminBannerManagement') selectedKey.value = 'banner-management'
-    else if (name === 'adminFaqManagement') selectedKey.value = 'faq-management'
-    else if (name === 'adminSiteInfo') selectedKey.value = 'site-info'
-    else if (name === 'adminStatisticsDashboard') selectedKey.value = 'statistics-dashboard'
-    else if (name === 'adminReportDownload') selectedKey.value = 'report-download'
+    else if (name === 'adminPaymentView') selectedKey.value = 'payment-view'
+    else if (name === 'adminStats') selectedKey.value = 'statistics-dashboard'
+    else if (name === 'adminDonationTop10') selectedKey.value = 'donation-top10'
+    else if (name === 'adminCategoryRanking') selectedKey.value = 'category-ranking'
   },
   { immediate: true }
 )
@@ -95,18 +97,14 @@ const onMenuClick = (e) => {
       router.push({ name: 'adminDonationHistory' }); break
     case 'payment-status':
       router.push({ name: 'adminPaymentStatus' }); break
-    case 'news-notice':
-      router.push({ name: 'adminNewsNotice' }); break
-    case 'banner-management':
-      router.push({ name: 'adminBannerManagement' }); break
-    case 'faq-management':
-      router.push({ name: 'adminFaqManagement' }); break
-    case 'site-info':
-      router.push({ name: 'adminSiteInfo' }); break
+    case 'payment-view':
+      router.push({ name: 'adminPaymentView' }); break
     case 'statistics-dashboard':
-      router.push({ name: 'adminStatisticsDashboard' }); break
-    case 'report-download':
-      router.push({ name: 'adminReportDownload' }); break
+      router.push({ name: 'adminStats' }); break
+    case 'donation-top10':
+      router.push({ name: 'adminDonationTop10' }); break
+    case 'category-ranking':
+      router.push({ name: 'adminCategoryRanking' }); break
   }
 }
 </script>
