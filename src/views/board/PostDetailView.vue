@@ -14,6 +14,13 @@ const mainColor = '#00C851'
 const newComment = ref('')
 const activeImage = ref('')
 
+// ✅ 댓글 정렬 옵션/상태
+const sortOptions = [
+  { label: '최신순', value: 'LATEST' },
+  { label: '응원순', value: 'LIKE' },
+]
+const sortLocal = ref('LATEST')
+
 // 기부 모달 상태
 const donationModalVisible = ref(false)
 const donationAmount = ref(10000)
@@ -58,10 +65,14 @@ const visibleDonors = computed(() => {
 
 // 신고 사유(백엔드 Enum과 일치)
 const REPORT_REASONS = [
-  { label: '스팸', value: 'SPAM' },
-  { label: '욕설/비방', value: 'ABUSE' },
-  { label: '부적절한 내용', value: 'INAPPROPRIATE' },
+  { label: '스팸/광고', value: 'SPAM' },
+  { label: '욕설/괴롭힘', value: 'ABUSE' },
+  { label: '부적절/선정', value: 'INAPPROPRIATE' },
+  { label: '개인정보 노출', value: 'PERSONAL_INFO' },
+  { label: '불법/범죄', value: 'ILLEGAL' },
+  { label: '기타', value: 'ETC' },
 ]
+
 
 // 댓글 권한 확인
 const isAdmin = computed(() => {
@@ -142,6 +153,7 @@ onMounted(async () => {
 async function loadComments(id = postId.value) {
   try {
     await commentStore.fetchComments(id, 'LATEST')
+    sortLocal.value = commentStore.sortMode
   } catch (err) {
     console.error('[댓글] 목록 조회 실패:', err)
     if (err?.response?.status === 401) {
@@ -150,6 +162,17 @@ async function loadComments(id = postId.value) {
       message.error('댓글을 불러오는데 실패했습니다.')
     }
   }
+}
+
+// ✅ 정렬 전환
+async function onChangeSort(v) {
+  await commentStore.fetchComments(postId.value, v)
+  sortLocal.value = v
+}
+
+// ✅ 더보기
+async function onLoadMore() {
+  await commentStore.loadMore(postId.value)
 }
 
 // 라우트 id 변경 시 갱신
@@ -507,7 +530,6 @@ function proceedToPayment() {
               />
             </div>
           </div>
-          <!-- fallback -->
           <div v-else class="img-wrap">
             <img class="main-img" src="https://placehold.co/300x180" />
           </div>
@@ -515,9 +537,7 @@ function proceedToPayment() {
 
         <!-- 모금 소개 -->
         <div class="desc-section">
-          <div class="desc-title">
-            모금소개
-          </div>
+          <div class="desc-title">모금소개</div>
           <div class="desc-box">
             <div class="desc-block" v-html="post.content"></div>
           </div>
@@ -543,20 +563,13 @@ function proceedToPayment() {
           <ul class="donor-list">
             <li v-for="donor in visibleDonors" :key="donor.id" class="donor-item">
               <div class="donor-left">
-                <img
-                  v-if="donor.pictureUrl"
-                  :src="donor.pictureUrl"
-                  alt="프로필"
-                  class="donor-avatar"
-                />
+                <img v-if="donor.pictureUrl" :src="donor.pictureUrl" alt="프로필" class="donor-avatar" />
                 <div class="donor-info">
                   <div class="donor-name">{{ donor.name }}</div>
                   <div class="donor-date">{{ formatDateOnly(donor.createdAt) }}</div>
                 </div>
               </div>
-              <div class="donor-amount">
-                {{ donor.amount.toLocaleString() }}원
-              </div>
+              <div class="donor-amount">{{ donor.amount.toLocaleString() }}원</div>
             </li>
           </ul>
 
@@ -570,7 +583,17 @@ function proceedToPayment() {
         <!-- 댓글/한마디 영역 -->
         <div class="comment-section">
           <div class="comment-title">
-            따뜻한 <span style="color:#00C851;">한마디</span>
+            따뜻한 <span style="color:#FFC107;">한마디</span>
+          </div>
+
+          <!-- 정렬 탭 -->
+          <div class="comment-toolbar">
+            <a-segmented
+              v-model:value="sortLocal"
+              :options="sortOptions"
+              @change="onChangeSort"
+              size="small"
+            />
           </div>
 
           <!-- 댓글 입력 -->
@@ -582,7 +605,7 @@ function proceedToPayment() {
               :disabled="commentsLoading"
               allow-clear
               size="large"
-              style="flex: 1; margin-right: 8px;"
+              style="width:70%;margin-right:8px;"
             />
             <a-button
               type="primary"
@@ -596,7 +619,7 @@ function proceedToPayment() {
           </div>
 
           <div class="comment-count">
-            댓글 <span style="color:#00C851;">{{ safeComments.length }}</span>
+            댓글 <span style="color:#00C851;">{{ commentStore.totalCount }}</span>
           </div>
 
           <div v-if="commentsLoading && safeComments.length === 0" class="comment-loading">
@@ -642,8 +665,8 @@ function proceedToPayment() {
               </div>
 
               <div class="comment-content">{{ c.content }}</div>
-
               <div class="comment-actions">
+                <!-- 좋아요 버튼 -->
                 <button
                   class="like-btn"
                   :disabled="commentStore.likeLoading?.has?.(c.id)"
@@ -656,25 +679,36 @@ function proceedToPayment() {
                   <span class="count">{{ c.likeCount || 0 }}</span>
                 </button>
 
-                <button
-                  class="report-btn"
-                  :disabled="commentStore.reportLoading?.has?.(c.id)"
-                  @click="openReport(c)"
-                  title="신고하기"
-                >
-                  🚩 신고 <span v-if="c.reportCount">({{ c.reportCount }})</span>
-                </button>
+                <!-- 🚩 신고 -->
+                <template v-if="!c.alreadyReported">
+                  <button
+                    class="report-btn"
+                    :disabled="commentStore.reportLoading?.has?.(c.id)"
+                    @click="openReport(c)"
+                    title="신고하기"
+                  >
+                    🚩 신고 <span v-if="isAdmin && c.reportCount">({{ c.reportCount }})</span>
+                  </button>
+                </template>
+                <template v-else>
+                  <span class="report-label">🚩 신고됨</span>
+                </template>
               </div>
-
             </li>
           </ul>
+
+          <!-- 더보기 버튼 -->
+          <div v-if="!commentStore.last && safeComments.length > 0" class="more-row">
+            <a-button @click="onLoadMore" :loading="commentStore.loadingMore" block>
+              더보기
+            </a-button>
+          </div>
         </div>
-      </div>
+      </div> <!-- ✅ content-area 닫기 -->
 
       <!-- 오른쪽: 모금 정보 (Sticky) -->
       <div class="sidebar-area">
         <div class="progress-card sticky-card">
-          <!-- 게이지 위 영역 -->
           <div class="progress-header">
             <div class="left">
               <div class="goal">목표 {{ post.amount.toLocaleString() }}원</div>
@@ -685,14 +719,12 @@ function proceedToPayment() {
             </div>
           </div>
 
-          <!-- 게이지 -->
           <a-progress :percent="post.percent" :stroke-color="mainColor" :show-info="false" />
 
-          <!-- 게이지 아래 왼쪽 하단 -->
           <div class="progress-footer">
             <span class="start">모금 시작일 {{ formatDateOnly(post.createdAt) }}</span>
           </div>
-          <br/>
+          <br />
           <div class="progress-info">
             <div>모금목표 <span>{{ post.amount }}원</span></div>
             <div v-if="post.overfunded > 0">
@@ -704,6 +736,7 @@ function proceedToPayment() {
             <div>총 참여인원 <span>{{ post.donorCount }}명</span></div>
             <div>마감까지 <span>{{ post.daysLeft }}일</span></div>
           </div>
+
           <a-button
             type="primary"
             class="donate-btn"
@@ -717,9 +750,9 @@ function proceedToPayment() {
           </a-button>
         </div>
       </div>
-    </div>
+    </div> <!-- ✅ main-container 닫기 -->
 
-    <!-- 신고 모달: 컨트롤드 -->
+    <!-- 신고 모달 -->
     <a-modal
       v-model:open="reportModalVisible"
       title="이 댓글을 신고하시겠습니까?"
@@ -783,9 +816,7 @@ function proceedToPayment() {
         </div>
 
         <div class="modal-footer">
-          <a-button @click="closeDonationModal" style="margin-right: 8px;">
-            취소
-          </a-button>
+          <a-button @click="closeDonationModal" style="margin-right: 8px;">취소</a-button>
           <a-button
             type="primary"
             :style="{background: mainColor, borderColor: mainColor}"
@@ -801,7 +832,94 @@ function proceedToPayment() {
   <div v-else style="text-align:center;padding:100px 0;">잘못된 접근입니다.</div>
 </template>
 
+
 <style scoped>
+.comment-toolbar {
+  display:flex;
+  justify-content:flex-end;
+  margin: 6px 0 10px;
+}
+
+.more-row {
+  margin-top: 8px;
+}
+
+.comment-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.comment-error {
+  margin-bottom: 16px;
+}
+
+.comment-item {
+  background: #f6f6f6;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.comment-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.author-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.comment-date {
+  color: #888;
+  font-size: 12px;
+}
+
+.comment-content {
+  color: #444;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.like-btn,
+.report-btn {
+  font-size: 12px;
+  color: #555;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 14px;
+  transition: all 0.2s;
+  border: 1px solid #eee;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.like-btn[aria-pressed="true"] { border-color:#ff6b81; }
+.like-btn:hover { background: #fff7f8; }
+.report-btn:hover { background: #fff7f0; }
+
 .detail-root {
   max-width: 1200px;
   margin: 0 auto;

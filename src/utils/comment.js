@@ -19,24 +19,28 @@ function buildAccessConfig(extra = {}) {
   return extra
 }
 
+/**
+ * Axios 인터셉터에서 response.data 만 반환하도록 설정되어 있음.
+ * → 아래 메서드들은 모두 res(=data) 그대로 반환합니다.
+ */
 export const commentAPI = {
-  getComments: async (postId, sort = 'LATEST', page = 0, size = 20) => {
-    try {
-      const res = await api.get('/api/comments', buildAccessConfig({
+  // 목록 (정렬 + 페이지네이션)
+  getComments: async (postId, sort = 'LATEST', page = 0, size = 10) => {
+    return await api.get(
+      '/api/comments',
+      buildAccessConfig({
         params: { postId, sort, page, size },
-      }))
-      return res
-    } catch (error) {
-      throw error
-    }
+      }),
+    )
   },
 
+  // 작성
   createComment: async (postId, content) => {
     try {
       const res = await api.post(
         '/api/comments',
         { postId, content },
-        buildAccessConfig()
+        buildAccessConfig(),
       )
       return res
     } catch (error) {
@@ -44,12 +48,13 @@ export const commentAPI = {
     }
   },
 
+  // 수정
   updateComment: async (commentId, content) => {
     try {
       const res = await api.patch(
         `/api/comments/${commentId}`,
         { content },
-        buildAccessConfig()
+        buildAccessConfig(),
       )
       return res
     } catch (error) {
@@ -57,25 +62,35 @@ export const commentAPI = {
     }
   },
 
+  // 삭제
   deleteComment: async (commentId) => {
     try {
       const res = await api.delete(
         `/api/comments/${commentId}`,
-        buildAccessConfig()
+        buildAccessConfig(),
       )
-      return res ?? true
+      return res
     } catch (error) {
       throw error
     }
   },
+
   // ✅ 좋아요
   like: async (commentId) => {
-    const res = await api.post(`/api/comments/${commentId}/likes`, null, buildAccessConfig())
-    return res.data ?? res
+    const res = await api.post(
+      `/api/comments/${commentId}/likes`,
+      null,
+      buildAccessConfig(),
+    )
+    return res
   },
+
   unlike: async (commentId) => {
-    const res = await api.delete(`/api/comments/${commentId}/likes`, buildAccessConfig())
-    return res.data ?? res
+    const res = await api.delete(
+      `/api/comments/${commentId}/likes`,
+      buildAccessConfig(),
+    )
+    return res
   },
 
   // ✅ 신고
@@ -83,9 +98,8 @@ export const commentAPI = {
     const res = await api.post(
       `/api/comments/${commentId}/reports`,
       { reason }, // e.g. 'SPAM' | 'ABUSE' | 'INAPPROPRIATE'
-      buildAccessConfig()
+      buildAccessConfig(),
     )
-    return res.data ?? res
+    return res
   },
 }
-

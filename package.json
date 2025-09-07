@@ -16,6 +16,7 @@
     "ant-design-vue": "^4.2.6",
     "axios": "^1.11.0",
     "dayjs": "^1.11.13",
+    "echarts": "^6.0.0",
     "pinia": "^3.0.3",
     "pinia-plugin-persistedstate": "^4.5.0",
     "vue": "^3.5.17",
