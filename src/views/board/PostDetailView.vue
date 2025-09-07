@@ -530,7 +530,6 @@ function proceedToPayment() {
               />
             </div>
           </div>
-          <!-- fallback -->
           <div v-else class="img-wrap">
             <img class="main-img" src="https://placehold.co/300x180" />
           </div>
@@ -538,9 +537,7 @@ function proceedToPayment() {
 
         <!-- 모금 소개 -->
         <div class="desc-section">
-          <div class="desc-title">
-            모금소개
-          </div>
+          <div class="desc-title">모금소개</div>
           <div class="desc-box">
             <div class="desc-block" v-html="post.content"></div>
           </div>
@@ -566,20 +563,13 @@ function proceedToPayment() {
           <ul class="donor-list">
             <li v-for="donor in visibleDonors" :key="donor.id" class="donor-item">
               <div class="donor-left">
-                <img
-                  v-if="donor.pictureUrl"
-                  :src="donor.pictureUrl"
-                  alt="프로필"
-                  class="donor-avatar"
-                />
+                <img v-if="donor.pictureUrl" :src="donor.pictureUrl" alt="프로필" class="donor-avatar" />
                 <div class="donor-info">
                   <div class="donor-name">{{ donor.name }}</div>
                   <div class="donor-date">{{ formatDateOnly(donor.createdAt) }}</div>
                 </div>
               </div>
-              <div class="donor-amount">
-                {{ donor.amount.toLocaleString() }}원
-              </div>
+              <div class="donor-amount">{{ donor.amount.toLocaleString() }}원</div>
             </li>
           </ul>
 
@@ -590,195 +580,194 @@ function proceedToPayment() {
           </div>
         </div>
 
-
-    <!-- 댓글/한마디 영역 -->
-    <div class="comment-section">
-      <div class="comment-title">
-        따뜻한 <span style="color:#FFC107;">한마디</span>
-      </div>
-
-      <!-- ✅ 정렬 탭 -->
-      <div class="comment-toolbar">
-        <a-segmented
-          v-model:value="sortLocal"
-          :options="sortOptions"
-          @change="onChangeSort"
-          size="small"
-        />
-      </div>
-
-      <!-- 댓글 입력 -->
-      <div class="comment-input-row">
-        <a-input
-          v-model:value="newComment"
-          placeholder="따뜻한 댓글을 남겨주세요!"
-          @keyup.enter="addComment"
-          :disabled="commentsLoading"
-          allow-clear
-          size="large"
-          style="width:70%;margin-right:8px;"
-        />
-        <a-button
-          type="primary"
-          size="large"
-          :style="{background: mainColor, borderColor: mainColor}"
-          @click="addComment"
-          :loading="commentsLoading"
-        >
-          등록
-        </a-button>
-      </div>
-
-      <div class="comment-count">
-        댓글 <span style="color:#00C851;">{{ commentStore.totalCount }}</span>
-      </div>
-
-      <div v-if="commentsLoading && safeComments.length === 0" class="comment-loading">
-        <a-spin size="small" /> 댓글을 불러오는 중...
-      </div>
-
-      <div v-else-if="commentsError" class="comment-error">
-        <a-alert
-          :message="commentsError"
-          type="warning"
-          show-icon
-          closable
-          @close="onCloseCommentError"
-        />
-      </div>
-
-      <div v-else-if="safeComments.length === 0" class="no-comments">
-        등록된 한마디가 없습니다.
-      </div>
-
-      <!-- 댓글 목록 -->
-      <ul v-else class="comment-list">
-        <li v-for="c in safeComments" :key="c.id" class="comment-item">
-          <div class="comment-header">
-            <div class="comment-author">
-              <span class="author-name">
-                {{ c.authorEmail ? c.authorEmail.split('@')[0] + '@***' : `#${c.memberId}` }}
-              </span>
-              <span class="comment-date">{{ formatDate(c.createdAt) }}</span>
-            </div>
-
-            <a-dropdown v-if="canManageComment(c)" placement="bottomRight">
-              <a class="ant-dropdown-link" @click.prevent>
-                <more-outlined style="font-size: 16px; color: #999;" />
-              </a>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item @click="editComment(c.id, c.content)">수정</a-menu-item>
-                  <a-menu-item danger @click="deleteComment(c.id)">삭제</a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
+        <!-- 댓글/한마디 영역 -->
+        <div class="comment-section">
+          <div class="comment-title">
+            따뜻한 <span style="color:#FFC107;">한마디</span>
           </div>
 
-          <div class="comment-content">{{ c.content }}</div>
-          <div class="comment-actions">
-            <!-- 좋아요 버튼 -->
-            <button
-              class="like-btn"
-              :disabled="commentStore.likeLoading?.has?.(c.id)"
-              @click="onToggleLike(c)"
-              :aria-pressed="!!c.liked"
-              :title="c.liked ? '좋아요 취소' : '좋아요'"
-            >
-              <span v-if="c.liked">❤️</span>
-              <span v-else>🤍</span>
-              <span class="count">{{ c.likeCount || 0 }}</span>
-            </button>
-
-            <!-- 신고 버튼 -->
-            <template v-if="!c.alreadyReported">
-              <button
-                class="report-btn"
-                :disabled="commentStore.reportLoading?.has?.(c.id)"
-                @click="openReport(c)"
-                title="신고하기"
-              >
-                🚩 신고
-              </button>
-            </template>
-            <template v-else>
-              <span class="report-label">🚩 신고됨</span>
-            </template>
+          <!-- 정렬 탭 -->
+          <div class="comment-toolbar">
+            <a-segmented
+              v-model:value="sortLocal"
+              :options="sortOptions"
+              @change="onChangeSort"
+              size="small"
+            />
           </div>
-        </li>
-      </ul>
 
-      <!-- 더보기 버튼 -->
-      <div v-if="!commentStore.last && safeComments.length > 0" class="more-row">
-        <a-button @click="onLoadMore" :loading="commentStore.loadingMore" block>
-          더보기
-        </a-button>
-      </div>
-    </div>
-
-        <!-- 오른쪽: 모금 정보 (Sticky) -->
-        <div class="sidebar-area">
-          <div class="progress-card sticky-card">
-            <!-- 게이지 위 영역 -->
-            <div class="progress-header">
-              <div class="left">
-                <div class="goal">목표 {{ post.amount.toLocaleString() }}원</div>
-                <div class="current">{{ post.currentAmount.toLocaleString() }}원 모금</div>
-              </div>
-              <div class="right">
-                <span class="percent">{{ Math.trunc(post.percentRaw) }}%</span>
-              </div>
-            </div>
-
-            <!-- 게이지 -->
-            <a-progress :percent="post.percent" :stroke-color="mainColor" :show-info="false" />
-
-            <!-- 게이지 아래 왼쪽 하단 -->
-            <div class="progress-footer">
-              <span class="start">모금 시작일 {{ formatDateOnly(post.createdAt) }}</span>
-            </div>
-            <br/>
-            <div class="progress-info">
-              <div>모금목표 <span>{{ post.amount }}원</span></div>
-              <div v-if="post.overfunded > 0">
-                초과모금 <span style="color: #00C851;">{{ post.overfunded }}원</span>
-              </div>
-              <div v-else>
-                후원잔액까지 <span>{{ post.remaining }}원</span>
-              </div>
-              <div>총 참여인원 <span>{{ post.donorCount }}명</span></div>
-              <div>마감까지 <span>{{ post.daysLeft }}일</span></div>
-            </div>
+          <!-- 댓글 입력 -->
+          <div class="comment-input-row">
+            <a-input
+              v-model:value="newComment"
+              placeholder="따뜻한 댓글을 남겨주세요!"
+              @keyup.enter="addComment"
+              :disabled="commentsLoading"
+              allow-clear
+              size="large"
+              style="width:70%;margin-right:8px;"
+            />
             <a-button
               type="primary"
-              class="donate-btn"
+              size="large"
               :style="{background: mainColor, borderColor: mainColor}"
-              @click="openDonationModal"
-              :disabled="post.status === 'COMPLETED' && !isAdmin"
+              @click="addComment"
+              :loading="commentsLoading"
             >
-              <template v-if="post.status === 'COMPLETED' && !isAdmin">마감됨</template>
-              <template v-else-if="isAdmin">기부내역보기</template>
-              <template v-else>기부하기</template>
+              등록
+            </a-button>
+          </div>
+
+          <div class="comment-count">
+            댓글 <span style="color:#00C851;">{{ commentStore.totalCount }}</span>
+          </div>
+
+          <div v-if="commentsLoading && safeComments.length === 0" class="comment-loading">
+            <a-spin size="small" /> 댓글을 불러오는 중...
+          </div>
+
+          <div v-else-if="commentsError" class="comment-error">
+            <a-alert
+              :message="commentsError"
+              type="warning"
+              show-icon
+              closable
+              @close="onCloseCommentError"
+            />
+          </div>
+
+          <div v-else-if="safeComments.length === 0" class="no-comments">
+            등록된 한마디가 없습니다.
+          </div>
+
+          <!-- 댓글 목록 -->
+          <ul v-else class="comment-list">
+            <li v-for="c in safeComments" :key="c.id" class="comment-item">
+              <div class="comment-header">
+                <div class="comment-author">
+                  <span class="author-name">
+                    {{ c.authorEmail ? c.authorEmail.split('@')[0] + '@***' : `#${c.memberId}` }}
+                  </span>
+                  <span class="comment-date">{{ formatDate(c.createdAt) }}</span>
+                </div>
+
+                <a-dropdown v-if="canManageComment(c)" placement="bottomRight">
+                  <a class="ant-dropdown-link" @click.prevent>
+                    <more-outlined style="font-size: 16px; color: #999;" />
+                  </a>
+                  <template #overlay>
+                    <a-menu>
+                      <a-menu-item @click="editComment(c.id, c.content)">수정</a-menu-item>
+                      <a-menu-item danger @click="deleteComment(c.id)">삭제</a-menu-item>
+                    </a-menu>
+                  </template>
+                </a-dropdown>
+              </div>
+
+              <div class="comment-content">{{ c.content }}</div>
+              <div class="comment-actions">
+                <!-- 좋아요 버튼 -->
+                <button
+                  class="like-btn"
+                  :disabled="commentStore.likeLoading?.has?.(c.id)"
+                  @click="onToggleLike(c)"
+                  :aria-pressed="!!c.liked"
+                  :title="c.liked ? '좋아요 취소' : '좋아요'"
+                >
+                  <span v-if="c.liked">❤️</span>
+                  <span v-else>🤍</span>
+                  <span class="count">{{ c.likeCount || 0 }}</span>
+                </button>
+
+                <!-- 🚩 신고 -->
+                <template v-if="!c.alreadyReported">
+                  <button
+                    class="report-btn"
+                    :disabled="commentStore.reportLoading?.has?.(c.id)"
+                    @click="openReport(c)"
+                    title="신고하기"
+                  >
+                    🚩 신고 <span v-if="isAdmin && c.reportCount">({{ c.reportCount }})</span>
+                  </button>
+                </template>
+                <template v-else>
+                  <span class="report-label">🚩 신고됨</span>
+                </template>
+              </div>
+            </li>
+          </ul>
+
+          <!-- 더보기 버튼 -->
+          <div v-if="!commentStore.last && safeComments.length > 0" class="more-row">
+            <a-button @click="onLoadMore" :loading="commentStore.loadingMore" block>
+              더보기
             </a-button>
           </div>
         </div>
+      </div> <!-- ✅ content-area 닫기 -->
 
-        <!-- 신고 모달 -->
-        <a-modal
-          v-model:open="reportModalVisible"
-          title="이 댓글을 신고하시겠습니까?"
-          :confirm-loading="submittingReport"
-          @ok="submitReport"
-          ok-text="신고"
-          cancel-text="취소"
-        >
-          <a-radio-group v-model:value="selectedReason" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
-            <a-radio v-for="r in REPORT_REASONS" :key="r.value" :value="r.value">{{ r.label }}</a-radio>
-          </a-radio-group>
-          <div style="margin-top:10px;color:#999;font-size:12px;">
-            허위 신고 시 이용 제한될 수 있습니다.
+      <!-- 오른쪽: 모금 정보 (Sticky) -->
+      <div class="sidebar-area">
+        <div class="progress-card sticky-card">
+          <div class="progress-header">
+            <div class="left">
+              <div class="goal">목표 {{ post.amount.toLocaleString() }}원</div>
+              <div class="current">{{ post.currentAmount.toLocaleString() }}원 모금</div>
+            </div>
+            <div class="right">
+              <span class="percent">{{ Math.trunc(post.percentRaw) }}%</span>
+            </div>
           </div>
-        </a-modal>
+
+          <a-progress :percent="post.percent" :stroke-color="mainColor" :show-info="false" />
+
+          <div class="progress-footer">
+            <span class="start">모금 시작일 {{ formatDateOnly(post.createdAt) }}</span>
+          </div>
+          <br />
+          <div class="progress-info">
+            <div>모금목표 <span>{{ post.amount }}원</span></div>
+            <div v-if="post.overfunded > 0">
+              초과모금 <span style="color: #00C851;">{{ post.overfunded }}원</span>
+            </div>
+            <div v-else>
+              후원잔액까지 <span>{{ post.remaining }}원</span>
+            </div>
+            <div>총 참여인원 <span>{{ post.donorCount }}명</span></div>
+            <div>마감까지 <span>{{ post.daysLeft }}일</span></div>
+          </div>
+
+          <a-button
+            type="primary"
+            class="donate-btn"
+            :style="{background: mainColor, borderColor: mainColor}"
+            @click="openDonationModal"
+            :disabled="post.status === 'COMPLETED' && !isAdmin"
+          >
+            <template v-if="post.status === 'COMPLETED' && !isAdmin">마감됨</template>
+            <template v-else-if="isAdmin">기부내역보기</template>
+            <template v-else>기부하기</template>
+          </a-button>
+        </div>
+      </div>
+    </div> <!-- ✅ main-container 닫기 -->
+
+    <!-- 신고 모달 -->
+    <a-modal
+      v-model:open="reportModalVisible"
+      title="이 댓글을 신고하시겠습니까?"
+      :confirm-loading="submittingReport"
+      @ok="submitReport"
+      ok-text="신고"
+      cancel-text="취소"
+    >
+      <a-radio-group v-model:value="selectedReason" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+        <a-radio v-for="r in REPORT_REASONS" :key="r.value" :value="r.value">{{ r.label }}</a-radio>
+      </a-radio-group>
+      <div style="margin-top:10px;color:#999;font-size:12px;">
+        허위 신고 시 이용 제한될 수 있습니다.
+      </div>
+    </a-modal>
 
     <!-- 기부 모달 -->
     <a-modal
@@ -827,9 +816,7 @@ function proceedToPayment() {
         </div>
 
         <div class="modal-footer">
-          <a-button @click="closeDonationModal" style="margin-right: 8px;">
-            취소
-          </a-button>
+          <a-button @click="closeDonationModal" style="margin-right: 8px;">취소</a-button>
           <a-button
             type="primary"
             :style="{background: mainColor, borderColor: mainColor}"
@@ -844,6 +831,7 @@ function proceedToPayment() {
 
   <div v-else style="text-align:center;padding:100px 0;">잘못된 접근입니다.</div>
 </template>
+
 
 <style scoped>
 .comment-toolbar {
