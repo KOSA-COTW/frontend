@@ -181,11 +181,11 @@ const referralLink = computed(() =>
 const information = async () => {
   loading.value = true
   try {
-    const { data: info } = await axios.get('/api/info')
+    const info = await axios.get('/api/info')
 
     userInfo.email = info.email ?? null
     userInfo.name = info.name ?? null
-    userInfo.nickname = info.nickname ?? info.name
+    userInfo.nickname = info.nickname ?? info.name ?? null
     userInfo.pictureUrl = info.pictureUrl ?? null
     userInfo.role = info.role ?? null
     userInfo.provider = info.provider ?? null
