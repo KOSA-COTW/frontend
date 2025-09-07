@@ -36,5 +36,23 @@ export const adminRoutes = [
     component: () => import('@/views/admin/donation/AdminDonationView.vue'),
     meta: { requiresAdmin: true },
     props: true
+  },
+  {
+    path: '/admin/stats',
+    name: 'adminStats',
+    component: () => import('@/views/admin/statistics/AdminStatsView.vue'),
+    meta: { requiresAdmin: true }
+  },
+  {
+    path: '/admin/stats/donation-top10',
+    name: 'adminDonationTop10',
+    component: () => import('@/views/admin/statistics/AdminDonationTop10View.vue'),
+    meta: { requiresAdmin: true }
+  },
+  {
+    path: '/admin/stats/category-ranking',
+    name: 'adminCategoryRanking',
+    component: () => import('@/views/admin/statistics/AdminCategoryRankingView.vue'),
+    meta: { requiresAdmin: true }
   }
 ]
