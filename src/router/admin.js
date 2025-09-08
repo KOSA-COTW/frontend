@@ -36,7 +36,7 @@ export const adminRoutes = [
       {
         path: 'payments/view',
         name: 'adminPaymentView',
-        component: () => import('@/views/admin/payment/AdminPaymentView.vue'),
+        component: () => import('@/views/admin/payment/AdminpaymentView.vue'),
         meta: { requiresAdmin: true }
       },
 
