@@ -44,19 +44,19 @@
               </a-descriptions>
 
               <!-- 초대 -->
-              <div class="invite-box">
-                <div class="invite-header">
-                  <p class="invite-title">친구 초대하기</p>
-                  <a-button v-if="referralLink" size="small" type="text" class="copy-btn" @click="copyInviteLink">링크 복사</a-button>
-                </div>
-                <div class="invite-summary">
-                  <span>초대한 친구 <b>{{ inviteCount }}</b>명</span>
-                  <div class="share-actions">
-                    <a-button size="small" @click="shareInvite">공유</a-button>
-                    <a-input v-if="referralLink" :value="referralLink" size="small" readonly />
-                  </div>
-                </div>
-              </div>
+<!--              <div class="invite-box">-->
+<!--                <div class="invite-header">-->
+<!--                  <p class="invite-title">친구 초대하기</p>-->
+<!--                  <a-button v-if="referralLink" size="small" type="text" class="copy-btn" @click="copyInviteLink">링크 복사</a-button>-->
+<!--                </div>-->
+<!--                <div class="invite-summary">-->
+<!--                  <span>초대한 친구 <b>{{ inviteCount }}</b>명</span>-->
+<!--                  <div class="share-actions">-->
+<!--                    <a-button size="small" @click="shareInvite">공유</a-button>-->
+<!--                    <a-input v-if="referralLink" :value="referralLink" size="small" readonly />-->
+<!--                  </div>-->
+<!--                </div>-->
+<!--              </div>-->
             </div>
           </div>
         </a-skeleton>
@@ -110,7 +110,7 @@
         />
 
         <a-alert v-if="deleteError" type="error" :message="deleteError" show-icon banner class="mt8" />
-        <div class="danger-note">탈퇴 시 보유 포인트 및 계정 정보가 영구 삭제될 수 있습니다.</div>
+        <div class="danger-note">탈퇴 시 계정 정보가 30일 뒤 영구 삭제될 수 있습니다.</div>
       </div>
     </a-modal>
   </div>
@@ -122,14 +122,11 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { message } from 'ant-design-vue'
 import axios from 'axios'
-import PaymentHistoryView from '@/views/payment/PaymentHistoryView.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
 
-
 // 상태
-
 const loading = ref(true)
 const inviteCount = ref(0)
 const userInfo = reactive({
@@ -224,7 +221,7 @@ const handleDelete = async () => {
     const user = localStorage.getItem('auth')
     const accessToken = user ? JSON.parse(user).accessToken : null
     // 프로젝트 컨벤션에 맞춰 POST 사용
-    await axios.post('/api/deactivate', { password: deletePassword.value }, { headers: { Authorization: `Bearer ${accessToken}` } })
+    await axios.post('/api/deactivate', { password: deletePassword.value }, { headers: { Authorization: `Bearer ${accessToken}` }})
     message.success('계정이 삭제되었습니다. 그동안 이용해 주셔서 감사합니다.')
     closeDeleteModal(); auth.logout(); router.replace('/')
   } catch (e) {

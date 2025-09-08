@@ -3,11 +3,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 import MainPage from '@/views/MainPage.vue'
 import SignupView from '@/views/member/SignupView.vue'
 import LoginView from '@/views/member/LoginView.vue'
-import MyPageView from '@/views/member/MyPageView.vue'
 import { useAuthStore } from '@/stores/auth'
 import { boardRoutes } from './board.js'
 import { adminRoutes } from './admin.js'
 import { paymentRoutes } from './payment.js'
+import VerifyEmailView from '@/views/auth/VerifyEmailView.vue'
+import FindAccountView from '@/views/auth/FindAccountView.vue'
+import RecoverAccount from '@/views/auth/RecoverAccount.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -27,6 +29,21 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: LoginView
+    },
+    {
+      path: '/verify-email',
+      name: 'verify-email',
+      component: VerifyEmailView
+    },
+    {
+      path: '/find-account',
+      name: 'find-account',
+      component: FindAccountView
+    },
+    {
+      path: '/recover-account',
+      name: 'recover-account',
+      component: RecoverAccount
     },
     {
       path: '/oauth2/success',
