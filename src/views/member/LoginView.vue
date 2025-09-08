@@ -122,9 +122,17 @@ const handleSubmit = async () => {
   loading.value = true;
 
   try {
+    // 상대 경로 사용 (로컬: 프록시, 배포: 같은 도메인)
     const response = await axios.post('/api/auth/login', {
       email: form.email,
       password: form.password
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      transformRequest: [(data) => {
+        return JSON.stringify(data);
+      }]
     });
 
     // JWT 토큰 저장 (응답 데이터에서 또는 헤더에서)

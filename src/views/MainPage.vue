@@ -103,10 +103,10 @@ const categories = [
               style="margin-top: 10px"
             />
             <div class="bottom-info">
-              <span class="remaining">
-                마감까지 {{ (item.remaining || 0).toLocaleString() }}원
+              <span class="percent" :class="{ over: item.percentRaw >= 100 }">
+                {{ Math.trunc(item.percentRaw) }}%
+                <span v-if="item.percentRaw >= 100"> 🎉</span>
               </span>
-              <span class="percent"> {{ item.percentRaw }}% </span>
             </div>
           </div>
         </a-card>
@@ -166,11 +166,13 @@ const categories = [
           class="category-item"
           @click="() => {
             if (category.name === '전체') {
-              postStore.clearCategory()
+              router.push({ name: 'postList' })
             } else {
-              postStore.setCategory(category.name)
+              router.push({
+              name: 'postList',
+              query: { category: category.name }
+            })
             }
-            router.push('/posts')
           }"
         >
           <div class="category-circle">
@@ -477,5 +479,9 @@ const categories = [
     width: 26px;
     height: 26px;
   }
+}
+.percent.over {
+  color: #00C851;   /* 메인컬러나 강조색 */
+  font-weight: bold;
 }
 </style>

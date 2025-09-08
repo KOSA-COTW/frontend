@@ -123,6 +123,7 @@ import { useAuthStore } from '@/stores/auth'
 import { message } from 'ant-design-vue'
 import axios from 'axios'
 
+
 const router = useRouter()
 const auth = useAuthStore()
 
@@ -178,13 +179,11 @@ const referralLink = computed(() =>
 const information = async () => {
   loading.value = true
   try {
-    const user = localStorage.getItem('auth')
-    const accessToken = user ? JSON.parse(user).accessToken : null
-    const { data: info } = await axios.get('/api/info', { headers: { Authorization: `Bearer ${accessToken}` } })
+    const info = await axios.get('/api/info')
 
     userInfo.email = info.email ?? null
     userInfo.name = info.name ?? null
-    userInfo.nickname = info.nickname ?? info.name
+    userInfo.nickname = info.nickname ?? info.name ?? null
     userInfo.pictureUrl = info.pictureUrl ?? null
     userInfo.role = info.role ?? null
     userInfo.provider = info.provider ?? null

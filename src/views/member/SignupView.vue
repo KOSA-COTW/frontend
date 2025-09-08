@@ -221,7 +221,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import axios from '@/utils/axios'
 
 // ====== Router / State ======
 const router = useRouter()

@@ -119,7 +119,7 @@
 import { onMounted, reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import axios from 'axios'
+import axios from '@/utils/axios'
 
 const router = useRouter()
 
@@ -129,9 +129,7 @@ const loadingInfo = ref(true)
 
 const loadInfo = async () => {
   try {
-    const user = localStorage.getItem('auth')
-    const accessToken = user ? JSON.parse(user).accessToken : null
-    const { data } = await axios.get('/api/info', { headers: { Authorization: `Bearer ${accessToken}` } })
+    const { data } = await axios.get('/api/info')
     userInfo.email = data.email ?? null
     userInfo.nickname = data.nickname ?? null
     userInfo.pictureUrl = data.pictureUrl ?? null
@@ -186,13 +184,9 @@ const saveAvatar = async () => {
   if (!avatarFile.value) return
   savingAvatar.value = true
   try {
-    const user = localStorage.getItem('auth')
-    const accessToken = user ? JSON.parse(user).accessToken : null
-
     const fd = new FormData()
     fd.append('file', avatarFile.value)
 
-    // 실제 엔드포인트로 교체 가능
     await axios.patch('/api/changeimage', fd, {
       headers: { Authorization : `Bearer ${accessToken}` , 'Content-Type': "multipart/form-data"}
     })
@@ -254,13 +248,7 @@ const saveNickname = async () => {
   if (!canSubmitNick.value) return
   savingNick.value = true
   try {
-    const user = localStorage.getItem('auth')
-    const accessToken = user ? JSON.parse(user).accessToken : null
-
-    // 실제 엔드포인트로 교체하세요. 예: PATCH /api/users/me/nickname
-    await axios.patch('/api/editnickname', { newNickname: nickRules.value.trimmed }, {
-      headers: { access: accessToken }
-    })
+    await axios.patch('/api/editnickname', { newNickname: nickRules.value.trimmed })
 
     // 로컬 상태 즉시 반영
     userInfo.name = nickRules.value.trimmed
@@ -298,10 +286,7 @@ const savePassword = async () => {
 
   savingPw.value = true
   try {
-    const user = localStorage.getItem('auth')
-    const accessToken = user ? JSON.parse(user).accessToken : null
-
-    await axios.patch('/api/editpass', { currentPassword: pw.current, newPassword: pw.new }, { headers: { access: accessToken } })
+    await axios.patch('/api/editpass', { currentPassword: pw.current, newPassword: pw.new })
 
     message.success('비밀번호가 변경되었습니다.')
     resetPw()

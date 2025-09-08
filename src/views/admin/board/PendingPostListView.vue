@@ -1,29 +1,12 @@
 <template>
-  <div class="all-posts">
-    <!-- 헤더 + 통계 -->
+  <div class="pending-posts">
+    <!-- 헤더 -->
     <div class="header">
-      <h2>전체 게시글 관리</h2>
+      <h2>승인 대기 게시글</h2>
       <div class="stats">
-        <span>총 {{ totalPosts }}개의 게시글</span>
-        <span class="divider">|</span>
-        <span style="color: #00c851">공개 {{ countStatus('APPROVED') }}개</span>
-        <span class="divider">|</span>
-        <span style="color: #ff4d4f">비공개 {{ countStatus('PRIVATE') }}개</span>
-        <span class="divider">|</span>
-        <span style="color: #faad14">승인 대기 {{ countStatus('PENDING') }}개</span>
-        <span class="divider">|</span>
-        <span style="color: #8c8c8c">반려됨 {{ countStatus('REJECTED') }}개</span>
+        <span>총 {{ totalPosts }}개의 승인 대기 게시글</span>
       </div>
     </div>
-
-    <!-- 상태 탭 -->
-    <a-tabs v-model:activeKey="activeStatusTab" @change="handleTabChange" class="status-tabs">
-      <a-tab-pane key="ALL" tab="전체" />
-      <a-tab-pane key="APPROVED" tab="공개" />
-      <a-tab-pane key="PRIVATE" tab="비공개" />
-      <a-tab-pane key="PENDING" tab="승인 대기" />
-      <a-tab-pane key="REJECTED" tab="반려됨" />
-    </a-tabs>
 
     <!-- 검색 & 정렬 -->
     <div class="search-bar">
@@ -72,6 +55,19 @@
       </div>
     </a-card>
 
+    <!-- 일괄 작업 툴바 -->
+    <div v-if="selectedRowKeys.length > 0" class="bulk-toolbar">
+      <span>{{ selectedRowKeys.length }}개 선택됨</span>
+      <div class="bulk-actions">
+        <a-button type="primary" @click="approveSelected" style="margin-right: 8px">
+          ✅ 일괄 승인
+        </a-button>
+        <a-button danger @click="openRejectModalBulk">
+          ❌ 일괄 반려
+        </a-button>
+      </div>
+    </div>
+
     <!-- 테이블 -->
     <a-table
       :data-source="displayPosts"
@@ -81,6 +77,7 @@
       :pagination="paginationConfig"
       :scroll="{ x: 1100 }"
       style="margin-top: 16px"
+      :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
       @change="handleTableChange"
     >
       <a-table-column title="#" key="index" width="60" align="center">
@@ -89,36 +86,35 @@
         </template>
       </a-table-column>
 
-<!-- 제목 및 달성률 -->
-<a-table-column title="제목 및 달성률" key="title-progress" :ellipsis="true">
-  <template #default="{ record }">
-    <div class="title-progress">
-      <!-- 제목 -->
-      <div class="title-link" @click="viewPost(record.id)">
-        <a-tooltip :title="record.title" placement="topLeft">
-          <span>{{ record.title }}</span>
-        </a-tooltip>
-      </div>
+      <!-- 제목 및 달성률 -->
+      <a-table-column title="제목 및 달성률" key="title-progress" :ellipsis="true">
+        <template #default="{ record }">
+          <div class="title-progress">
+            <!-- 제목 -->
+            <div class="title-link" @click="viewPost(record.id)">
+              <a-tooltip :title="record.title" placement="topLeft">
+                <span>{{ record.title }}</span>
+              </a-tooltip>
+            </div>
 
-      <!-- 달성률 -->
-      <div class="progress-section">
-        <a-progress
-          :percent="record.percent"
-          size="small"
-          :status="record.percent >= 100 ? 'success' : 'active'"
-          :show-info="false"
-        />
-        <div class="progress-text">
-          <span class="raised">{{ record.currentAmount.toLocaleString() }}원</span>
-          /
-          <span class="goal">{{ record.amount.toLocaleString() }}원</span>
-          <span class="percent"> ({{ Math.trunc(record.percentRaw) }}%)</span>
-        </div>
-      </div>
-    </div>
-  </template>
-</a-table-column>
-
+            <!-- 달성률 -->
+            <div class="progress-section">
+              <a-progress
+                :percent="record.percent"
+                size="small"
+                :status="record.percent >= 100 ? 'success' : 'active'"
+                :show-info="false"
+              />
+              <div class="progress-text">
+                <span class="raised">{{ record.currentAmount.toLocaleString() }}원</span>
+                /
+                <span class="goal">{{ record.amount.toLocaleString() }}원</span>
+                <span class="percent"> ({{ Math.trunc(record.percentRaw) }}%)</span>
+              </div>
+            </div>
+          </div>
+        </template>
+      </a-table-column>
 
       <a-table-column title="작성자" key="authorName" width="160" align="center">
         <template #default="{ record }">
@@ -131,20 +127,6 @@
       <a-table-column title="카테고리" dataIndex="category" key="category" width="120" align="center">
         <template #default="{ record }">
           <a-tag color="blue">{{ record.category }}</a-tag>
-        </template>
-      </a-table-column>
-
-      <a-table-column title="상태" key="visibilityStatus" width="120" align="center">
-        <template #default="{ record }">
-          <a-tooltip v-if="record.visibilityStatus === 'REJECTED' && record.rejectionReason"
-                     :title="'반려 사유: ' + record.rejectionReason">
-            <a-tag :color="getStatusTag(record.visibilityStatus).color">
-              {{ getStatusTag(record.visibilityStatus).label }}
-            </a-tag>
-          </a-tooltip>
-          <a-tag v-else :color="getStatusTag(record.visibilityStatus).color">
-            {{ getStatusTag(record.visibilityStatus).label }}
-          </a-tag>
         </template>
       </a-table-column>
 
@@ -163,21 +145,8 @@
             <a-button type="text" size="small">⋮</a-button>
             <template #overlay>
               <a-menu>
-                <a-menu-item @click="changeStatus(record.id, 'APPROVED')">✅ 공개</a-menu-item>
-                <a-menu-item @click="changeStatus(record.id, 'PRIVATE')">🔒 비공개</a-menu-item>
-                <a-menu-item @click="changeStatus(record.id, 'PENDING')">🕒 승인 대기</a-menu-item>
+                <a-menu-item @click="approvePost(record.id)">✅ 승인</a-menu-item>
                 <a-menu-item @click="openRejectModal(record.id)">❌ 반려</a-menu-item>
-                <a-menu-divider />
-                <a-menu-item danger>
-                  <a-popconfirm
-                    title="정말 삭제하시겠습니까?"
-                    ok-text="삭제"
-                    cancel-text="취소"
-                    @confirm="deletePost(record.id)"
-                  >
-                    🗑️ 삭제
-                  </a-popconfirm>
-                </a-menu-item>
               </a-menu>
             </template>
           </a-dropdown>
@@ -201,7 +170,7 @@
     <div v-if="!loading && displayPosts.length === 0" class="empty-state">
       <div class="empty-icon">📋</div>
       <div class="empty-text">
-        조건에 맞는 게시글이 없습니다.<br />
+        조건에 맞는 승인 대기 게시글이 없습니다.<br />
         <a @click="resetFilters">초기화</a> 후 다시 시도해보세요.
       </div>
     </div>
@@ -220,13 +189,6 @@ const route = useRoute()
 const posts = ref([])
 const total = ref(0)
 const loading = ref(false)
-const statsData = ref({
-  totalCount: 0,
-  approvedCount: 0,
-  privateCount: 0,
-  pendingCount: 0,
-  rejectedCount: 0
-})
 
 // 쿼리 파라미터와 동기화되는 상태
 const currentPage = ref(1)
@@ -236,12 +198,17 @@ const sortBy = ref('date')
 const sortDirection = ref('desc')
 const filterCategory = ref(null)
 const filterDateRange = ref([])
-const activeStatusTab = ref('ALL')
+
+// 선택 상태
+const selectedRowKeys = ref([])
+const onSelectChange = (keys) => {
+  selectedRowKeys.value = keys
+}
 
 // 반려 모달 상태
 const rejectModalVisible = ref(false)
 const rejectReason = ref('')
-const targetPostId = ref(null)
+const targetPostIds = ref([])
 
 // 한글 displayName을 Category enum으로 변환
 const getCategoryEnum = (displayName) => {
@@ -257,17 +224,7 @@ const getCategoryEnum = (displayName) => {
   return categoryMap[displayName] || null
 }
 
-// 게시글 통계 조회
-const fetchStats = async () => {
-  try {
-    const res = await axios.get('/api/admin/posts/count')
-    statsData.value = res
-  } catch (e) {
-    console.error('통계 조회 실패:', e)
-  }
-}
-
-// 서버사이드 페이징으로 게시글 조회
+// 서버사이드 페이징으로 승인 대기 게시글 조회
 const fetchPosts = async (updateURL = true) => {
   loading.value = true
   try {
@@ -287,16 +244,12 @@ const fetchPosts = async (updateURL = true) => {
       params.category = getCategoryEnum(filterCategory.value)
     }
     
-    if (activeStatusTab.value !== 'ALL') {
-      params.visibility = activeStatusTab.value
-    }
-    
     if (filterDateRange.value?.length === 2) {
       params.startDate = filterDateRange.value[0].format('YYYY-MM-DD')
       params.endDate = filterDateRange.value[1].format('YYYY-MM-DD')
     }
     
-    const res = await axios.get('/api/admin/posts', { params })
+    const res = await axios.get('/api/admin/posts/pending', { params })
     posts.value = res.posts || []
     total.value = res.totalElements || 0
     
@@ -305,8 +258,8 @@ const fetchPosts = async (updateURL = true) => {
       updateURLParams()
     }
   } catch (e) {
-    console.error('게시글 불러오기 실패:', e)
-    message.error('게시글을 불러오는 중 오류가 발생했습니다.')
+    console.error('승인 대기 게시글 불러오기 실패:', e)
+    message.error('승인 대기 게시글을 불러오는 중 오류가 발생했습니다.')
   } finally {
     loading.value = false
   }
@@ -323,7 +276,6 @@ const updateURLParams = () => {
   
   if (searchKeyword.value) query.search = searchKeyword.value
   if (filterCategory.value) query.category = filterCategory.value
-  if (activeStatusTab.value !== 'ALL') query.status = activeStatusTab.value
   if (filterDateRange.value?.length === 2) {
     query.startDate = filterDateRange.value[0].format('YYYY-MM-DD')
     query.endDate = filterDateRange.value[1].format('YYYY-MM-DD')
@@ -342,7 +294,6 @@ const initFromURLParams = () => {
   sortDirection.value = query.sortDirection || 'desc'
   searchKeyword.value = query.search || ''
   filterCategory.value = query.category || null
-  activeStatusTab.value = query.status || 'ALL'
   
   if (query.startDate && query.endDate) {
     filterDateRange.value = [
@@ -352,22 +303,50 @@ const initFromURLParams = () => {
   }
 }
 
-// 상태 변경
-const changeStatus = async (postId, status) => {
+// 단건 승인
+const approvePost = async (postId) => {
   try {
-    await axios.patch('/api/admin/posts/status', { postIds: [postId], status })
-    message.success(`게시글 상태가 '${status}'로 변경되었습니다.`)
+    await axios.patch('/api/admin/posts/status', { postIds: [postId], status: 'APPROVED' })
+    message.success('게시글이 승인되었습니다.')
     fetchPosts()
-    fetchStats() // 상태 변경 후 통계도 새로고침
+    selectedRowKeys.value = selectedRowKeys.value.filter(id => id !== postId)
   } catch (e) {
-    console.error('상태 변경 실패:', e)
-    message.error('상태 변경 중 오류가 발생했습니다.')
+    console.error('승인 실패:', e)
+    message.error('승인 처리 중 오류가 발생했습니다.')
   }
 }
 
-// 반려 모달 열기
+// 일괄 승인
+const approveSelected = async () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('승인할 게시글을 선택하세요.')
+    return
+  }
+  try {
+    await axios.patch('/api/admin/posts/status', { postIds: selectedRowKeys.value, status: 'APPROVED' })
+    message.success(`${selectedRowKeys.value.length}개 게시글이 승인되었습니다.`)
+    selectedRowKeys.value = []
+    fetchPosts()
+  } catch (e) {
+    console.error('일괄 승인 실패:', e)
+    message.error('승인 처리 중 오류가 발생했습니다.')
+  }
+}
+
+// 단건 반려 모달 열기
 const openRejectModal = (postId) => {
-  targetPostId.value = postId
+  targetPostIds.value = [postId]
+  rejectReason.value = ''
+  rejectModalVisible.value = true
+}
+
+// 일괄 반려 모달 열기
+const openRejectModalBulk = () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('반려할 게시글을 선택하세요.')
+    return
+  }
+  targetPostIds.value = [...selectedRowKeys.value]
   rejectReason.value = ''
   rejectModalVisible.value = true
 }
@@ -380,46 +359,23 @@ const confirmReject = async () => {
   }
   try {
     await axios.patch('/api/admin/posts/status', {
-      postIds: [targetPostId.value],
+      postIds: targetPostIds.value,
       status: 'REJECTED',
       rejectionReason: rejectReason.value,
     })
-    message.info('게시글이 반려되었습니다.')
+    message.info(`${targetPostIds.value.length}개 게시글이 반려되었습니다.`)
     rejectModalVisible.value = false
+    selectedRowKeys.value = []
     fetchPosts()
-    fetchStats() // 반려 후 통계도 새로고침
   } catch (e) {
     console.error('반려 실패:', e)
     message.error('반려 처리 중 오류가 발생했습니다.')
   }
 }
 
-// 삭제
-const deletePost = async (postId) => {
-  try {
-    await axios.delete(`/api/admin/posts/${postId}`)
-    message.success('게시글이 삭제되었습니다.')
-    fetchPosts()
-    fetchStats() // 삭제 후 통계도 새로고침
-  } catch (e) {
-    console.error('삭제 실패:', e)
-    message.error('게시글 삭제 중 오류가 발생했습니다.')
-  }
-}
-
 // 서버에서 받은 데이터를 그대로 표시 (서버사이드 페이징)
 const displayPosts = computed(() => posts.value)
 
-// 실제 통계 데이터 사용
-const countStatus = (status) => {
-  switch (status) {
-    case 'APPROVED': return statsData.value.approvedCount
-    case 'PRIVATE': return statsData.value.privateCount
-    case 'PENDING': return statsData.value.pendingCount
-    case 'REJECTED': return statsData.value.rejectedCount
-    default: return 0
-  }
-}
 const handleTableChange = (pagination) => {
   currentPage.value = pagination.current
   pageSize.value = pagination.pageSize
@@ -435,7 +391,8 @@ const handleTableChange = (pagination) => {
   // 데이터 로드 (URL 업데이트 안 함)
   fetchPosts(false)
 }
-const totalPosts = computed(() => statsData.value.totalCount)
+
+const totalPosts = computed(() => total.value)
 const paginationConfig = computed(() => ({
   current: currentPage.value,
   pageSize: pageSize.value,
@@ -446,6 +403,7 @@ const paginationConfig = computed(() => ({
   pageSizeOptions: ['10', '20', '50'],
   size: 'default',
 }))
+
 const resetFilters = () => {
   searchKeyword.value = ''
   filterCategory.value = null
@@ -453,38 +411,23 @@ const resetFilters = () => {
   sortBy.value = 'date'
   sortDirection.value = 'desc'
   currentPage.value = 1
-  activeStatusTab.value = 'ALL'
   fetchPosts()
-  fetchStats()
 }
+
 const hasActiveFilters = computed(
   () =>
     searchKeyword.value ||
     filterCategory.value ||
     (filterDateRange.value?.length === 2) ||
     sortBy.value !== 'date' ||
-    sortDirection.value !== 'desc' ||
-    activeStatusTab.value !== 'ALL'
+    sortDirection.value !== 'desc'
 )
 
 // ====== Utils ======
 const formatDate = (dateString) =>
   new Date(dateString).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
 const formatFullDate = (dateString) => new Date(dateString).toLocaleString('ko-KR')
-const getStatusTag = (status) => {
-  switch (status) {
-    case 'APPROVED': return { color: 'green', label: '공개' }
-    case 'PRIVATE': return { color: 'red', label: '비공개' }
-    case 'PENDING': return { color: 'orange', label: '승인 대기' }
-    case 'REJECTED': return { color: 'gray', label: '반려됨' }
-    default: return { color: 'default', label: status }
-  }
-}
 const viewPost = (postId) => router.push({ name: 'postDetail', params: { id: postId } })
-const handleTabChange = () => {
-  currentPage.value = 1
-  fetchPosts()
-}
 
 // 검색어 변경시에만 첫 페이지로 이동하고 재조회
 watch([searchKeyword], () => {
@@ -506,26 +449,40 @@ const handleSearch = () => {
 onMounted(() => {
   initFromURLParams()
   fetchPosts(false) // 초기 로딩 시에는 URL 업데이트 안 함
-  fetchStats() // 통계 데이터도 로딩
 })
 </script>
 
 <style scoped>
-.all-posts { padding: 24px; background: #fff; min-height: 100vh; }
+.pending-posts { padding: 24px; background: #fff; min-height: 100vh; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f0f0f0; }
 .header h2 { margin: 0; font-size: 24px; color: #262626; }
 .stats { display: flex; align-items: center; font-size: 14px; color: #666; }
-.divider { margin: 0 12px; color: #d9d9d9; }
 .search-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .filter-panel { margin-bottom: 12px; }
 .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .filter-item label { display: block; font-size: 12px; margin-bottom: 4px; color: #666; }
 .title-link { cursor: pointer; color: #1890ff; }
 .title-link:hover { color: #40a9ff; }
-.row-actions { display: flex; gap: 4px; justify-content: center; }
 .empty-state { text-align: center; padding: 60px 20px; color: #999; }
 .empty-icon { font-size: 48px; margin-bottom: 16px; }
 .category-select { width: 140px; }
+
+.bulk-toolbar {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .title-progress {
   display: flex;
   flex-direction: column;
@@ -551,7 +508,7 @@ onMounted(() => {
   color: #555;
 }
 .progress-text .raised {
-  color: #00c851; /* 현재 모금액 강조 */
+  color: #00c851;
   font-weight: 600;
 }
 .progress-text .goal {
@@ -560,54 +517,5 @@ onMounted(() => {
 .progress-text .percent {
   color: #00c851;
   font-weight: 500;
-}
-.title-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.title-link {
-  cursor: pointer;
-  font-weight: 500;
-  color: #1890ff;
-}
-.title-link:hover {
-  color: #40a9ff;
-}
-
-.progress-section {
-  display: flex;
-  flex-direction: column;
-}
-
-.progress-text {
-  font-size: 13px;
-  color: #555;
-}
-.progress-text .raised {
-  color: #00c851; /* 현재 모금액 강조 */
-  font-weight: 600;
-}
-.progress-text .goal {
-  color: #999;
-}
-.progress-text .percent {
-  color: #00c851;
-  font-weight: 500;
-}
-
-/* 페이지네이션에서 더 많은 페이지 번호 표시 */
-:deep(.ant-pagination) {
-  /* 페이지 번호를 더 많이 표시하기 위한 스타일 조정 */
-}
-
-:deep(.ant-pagination-item) {
-  /* 페이지 번호 항목 스타일 */
-}
-
-/* 페이지네이션 항목들이 숨겨지지 않도록 설정 */
-:deep(.ant-pagination .ant-pagination-item-container .ant-pagination-item-ellipsis) {
-  /* 생략 부호 스타일 조정 */
 }
 </style>

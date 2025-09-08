@@ -52,11 +52,13 @@ const router = createRouter({
     },
     {
       path: '/mypage',
+      name: 'mypage',
       component: () => import('@/views/member/MyPageLayoutView.vue'),
       children: [
         { path: '', name: 'mypage.home', component: () => import('@/views/member/MyPageView.vue') },
         { path: 'edit', name: 'mypage.edit', component: () => import('@/views/member/MyProfileEditView.vue') },
         { path: 'donations', name: 'mypage.donations', component: () => import('@/views/payment/PaymentHistoryView.vue') },
+        { path: 'posts', name: 'mypage.posts', component: () => import('@/views/board/MyPostsView.vue') },
         // { path: 'points', name: 'mypage.points', component: () => import('@/views/member/PointHistoryView.vue') },
       ]
     },
@@ -67,13 +69,7 @@ const router = createRouter({
       component: () => import('@/views/error/ErrorPage.vue'),
       props: true
     },
-    // 404 catch-all (마지막에 위치)
-    {
-      path: '/:pathMatch(.*)*',
-      name: 'NotFound',
-      component: () => import('@/views/error/ErrorPage.vue'),
-      props: { errorType: '404' }
-    },
+
 
     // 게시판 관련 라우트
     ...boardRoutes,
@@ -82,7 +78,15 @@ const router = createRouter({
     ...paymentRoutes,
 
     // 관리자 라우트
-    ...adminRoutes
+    ...adminRoutes,
+
+    // 404 catch-all (마지막에 위치)
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'NotFound',
+      component: () => import('@/views/error/ErrorPage.vue'),
+      props: { errorType: '404' }
+    },
   ],
     scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
@@ -99,7 +103,8 @@ const router = createRouter({
 // 네비게이션 가드 - 관리자 권한 체크
 router.beforeEach((to, from, next) => {
   // requiresAdmin 메타 정보가 있는 경우 관리자 권한 체크
-  if (to.meta.requiresAdmin) {
+  const requiresAdmin = to.matched.some(record => record.meta?.requiresAdmin)
+  if (requiresAdmin) {
     const authStore = useAuthStore()
 
     if (!authStore.isLoggedIn) {

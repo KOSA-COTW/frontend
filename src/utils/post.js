@@ -2,34 +2,11 @@
 import api from './axios.js'
 import axios from 'axios'
 
-function buildAccessConfig(extra = {}) {
-  try {
-    const token = JSON.parse(localStorage.getItem('auth') || '{}')?.accessToken
-    if (token) {
-      return {
-        ...extra,
-        headers: {
-          ...(extra.headers || {}),
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    }
-  } catch (e) {
-    console.error('[PostAPI] Failed to read token:', e)
-  }
-  return extra
-}
-
 export const postAPI = {
   // 메인: 공개 + 마감 임박 6개
   getHomePosts: async () => {
-    try {
-      const response = await api.get('/api/posts/home')
-      return response
-    } catch (error) {
-      console.error('[PostAPI] getHomePosts failed:', error)
-      throw error
-    }
+    const response = await api.get('/api/posts/home')
+    return response
   },
 
   // 기부금 총액
@@ -49,132 +26,37 @@ export const postAPI = {
     return response
   },
 
-  // 단건 조회 (공개/비공개 혼합: 토큰 있으면 함께 보냄)
+  // 게시글 단건 조회
   getPostById: async (postId) => {
     const response = await api.get(`/api/posts/${postId}`)
     return response
   },
 
-  // 내가 쓴 글 (인증 필요)
+  // 내가 쓴 게시글 전체 조회
   getMyPosts: async () => {
-    try {
-      const response = await api.get('/api/posts/me', buildAccessConfig())
-      return response
-    } catch (error) {
-      console.error('[PostAPI] getMyPosts failed:', error)
-      throw error
-    }
+    const response = await api.get('/api/posts/me')
+    return response
   },
 
-  // 생성
+  // 게시글 생성
   createPost: async (postData) => {
     const response = await api.post('/api/posts', postData)
     return response
   },
 
-  // 수정
+  // 게시글 수정
   updatePost: async (postId, updateData) => {
-    try {
-      const response = await api.patch(`/api/posts/${postId}`, updateData, buildAccessConfig())
-      return response
-    } catch (error) {
-      console.error('[PostAPI] updatePost failed:', error)
-      throw error
-    }
+    const response = await api.patch(`/api/posts/${postId}`, updateData)
+    return response
   },
 
-  // 삭제
+  // 게시글 삭제
   deletePost: async (postId) => {
-    try {
-      const response = await api.delete(`/api/posts/${postId}`, buildAccessConfig())
-      return response
-    } catch (error) {
-      console.error('[PostAPI] deletePost failed:', error)
-      throw error
-    }
+    const response = await api.delete(`/api/posts/${postId}`)
+    return response
   },
 
-  // 공개 여부 변경
-  changeVisibility: async (postId, isPublic) => {
-    try {
-      const response = await api.patch(
-        `/api/posts/${postId}/visibility`,
-        null,
-        buildAccessConfig({ params: { isPublic } }),
-      )
-      return response
-    } catch (error) {
-      console.error('[PostAPI] changeVisibility failed:', error)
-      throw error
-    }
-  },
-
-  // 공지사항
-  getAllNotices: async () => {
-    try {
-      const response = await api.get('/api/notices')
-      return response
-    } catch (error) {
-      console.error('[PostAPI] getAllNotices failed:', error)
-      throw error
-    }
-  },
-
-  getNoticeById: async (id) => {
-    try {
-      const response = await api.get(`/api/notices/${id}`)
-      return response
-    } catch (error) {
-      console.error('[PostAPI] getNoticeById failed:', error)
-      throw error
-    }
-  },
-
-  createNotice: async (data) => {
-    try {
-      const response = await api.post('/api/notices', data, buildAccessConfig())
-      return response
-    } catch (error) {
-      console.error('[PostAPI] createNotice failed:', error)
-      throw error
-    }
-  },
-
-  updateNotice: async (id, data) => {
-    try {
-      const response = await api.patch(`/api/notices/${id}`, data, buildAccessConfig())
-      return response
-    } catch (error) {
-      console.error('[PostAPI] updateNotice failed:', error)
-      throw error
-    }
-  },
-
-  deleteNotice: async (id) => {
-    try {
-      const response = await api.delete(`/api/notices/${id}`, buildAccessConfig())
-      return response
-    } catch (error) {
-      console.error('[PostAPI] deleteNotice failed:', error)
-      throw error
-    }
-  },
-
-  uploadImage: async (file) => {
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const res = await api.post('/api/posts/upload', formData, {
-        ...buildAccessConfig(),
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      return res.url
-    } catch (error) {
-      console.error('[PostAPI] uploadImage failed:', error)
-      throw error
-    }
-  },
+  // 게시글 공개 여부 변경
   changeVisibilityBulk: async (postIds, isPublic) => {
     try {
       return await api.patch('/api/posts/visibility', {
@@ -185,5 +67,61 @@ export const postAPI = {
       console.error('[PostAPI] changeVisibilityBulk failed:', err)
       throw err
     }
+  },
+
+  // 공지사항 전체 조회
+  getAllNotices: async () => {
+    const response = await api.get('/api/notices')
+    return response
+  },
+
+  // 공지사항 단건 조회
+  getNoticeById: async (id) => {
+    const response = await api.get(`/api/notices/${id}`)
+    return response
+  },
+
+  // 공지사항 생성
+  createNotice: async (data) => {
+    const response = await api.post('/api/notices', data)
+    return response
+  },
+
+  // 공지사항 수정
+  updateNotice: async (id, data) => {
+    const response = await api.patch(`/api/notices/${id}`, data)
+    return response
+  },
+
+  // 공지사항 삭제
+  deleteNotice: async (id) => {
+    const response = await api.delete(`/api/notices/${id}`)
+    return response
+  },
+
+  // 이미지 업로드
+  uploadImage: async (file) => {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await api.post('/api/posts/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return response.url
+    } catch (error) {
+      console.error('[PostAPI] uploadImage failed:', error)
+      throw error
+    }
+  },
+
+  // 승인 요청
+  requestApproval: async (postId) => {
+    return api.post(`/api/posts/${postId}/request-approval`)
+  },
+
+  // 승인 취소
+  cancelApproval: async (postId) => {
+    return api.post(`/api/posts/${postId}/cancel-approval`)
   },
 }

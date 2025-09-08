@@ -1,26 +1,29 @@
 <template>
   <div class="admin-board-page">
-    <a-card title="게시글 관리" style="margin-bottom: 24px">
+
+    <a-card title="기부/결제 관리" style="margin-bottom: 24px">
       <a-typography-paragraph>
-        기부 게시글을 관리하고 승인할 수 있습니다.
+        기부내역 관리와 결제현황 조회를 할 수 있습니다.
       </a-typography-paragraph>
     </a-card>
 
     <a-row :gutter="[16, 16]" justify="center">
       <a-col :span="10">
-        <a-card title="게시글 승인 관리" hoverable>
-          <p>승인 대기 중인 기부 게시글을 검토하고 승인/반려할 수 있습니다.</p>
-          <a-button class="btn-outline" size="large" block @click="goToPostList">
-            승인 관리
+        <a-card title="전체 기부내역 조회" hoverable>
+          <p>전체 기부내역을 조회할 수 있습니다.</p>
+
+          <a-button class="btn-outline" size="large" block @click="goToDonationHistory">
+            전체 기부 내역
           </a-button>
         </a-card>
       </a-col>
 
       <a-col :span="10">
-        <a-card title="전체 게시글 관리" hoverable>
-          <p>모든 기부 게시글을 조회하고 공개/비공개, 삭제 등을 관리합니다.</p>
-          <a-button class="btn-outline" size="large" block @click="goToStatusManagement">
-            전체 게시글 관리
+        <a-card title="결제 현황 조회" hoverable>
+          <p>결제 현황을 조회 할 수 있습니다.</p>
+
+          <a-button class="btn-outline" size="large" block @click="goToPaymentStatus">
+            결제현황
           </a-button>
         </a-card>
       </a-col>
@@ -30,23 +33,23 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+// useAuthStore를 현재 코드에서 사용하지 않아 제거(원하면 유지해도 무방)
 import { onMounted } from 'vue'
 
 const router = useRouter()
-const authStore = useAuthStore()
 
 onMounted(() => {
   // 관리자 권한은 라우터 가드에서 체크됨
 })
 
-const goToPostList = () => {
-  router.push('/admin/board/posts')
+
+const goToDonationHistory = () => {
+  router.push({ name: 'adminDonationHistory' }) // /admin/donations
+}
+const goToPaymentStatus = () => {
+  router.push({ name: 'adminPaymentStatus' })   // /admin/payments
 }
 
-const goToStatusManagement = () => {
-  router.push('/admin/board/public_posts')
-}
 </script>
 
 <style scoped>
@@ -63,7 +66,7 @@ const goToStatusManagement = () => {
   justify-content: space-between;
 }
 
-/* ✅ 아웃라인 버튼 (연두색 테두리/텍스트만) */
+
 .btn-outline {
   background: transparent !important;
   color: var(--brand) !important;

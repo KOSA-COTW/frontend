@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePostStore } from '@/stores/post'
 import { useAuthStore } from '@/stores/auth'
 import { postAPI } from '@/utils/post'
+import dayjs from 'dayjs'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,7 +22,7 @@ const form = reactive({
   category: undefined,
   amount: '',
   content: '',
-  deadline: null, // 지금은 보여주기만
+  deadline: null,
   agreeTerms: true,
 })
 
@@ -38,7 +39,16 @@ const loading = ref(true)
 // 금액 표시용
 const amountDisplay = computed(() => (form.amount ? Number(form.amount).toLocaleString() : '0'))
 const formatAmount = (e) => {
-  form.amount = e.target.value.replace(/[^\d]/g, '')
+  // 숫자만 추출
+  let value = e.target.value.replace(/[^\d]/g, '')
+
+  // 10억 초과 입력시 잘라내기
+  if (Number(value) > 1_000_000_000) {
+    message.warning('목표 금액은 10억 원 이하로 입력해주세요.')
+    value = '1000000000'
+  }
+
+  form.amount = value
 }
 // 파일 input 열기
 const triggerFileInput = () => fileInput.value?.click()
@@ -76,14 +86,6 @@ const canEdit = computed(() => {
   const isAdmin = authData.user?.role === 'ADMIN'
   const authorEmail = post.value?.authorEmail
 
-  // 디버깅용 로그
-  // console.log("[권한체크]", {
-  //   myEmail,
-  //   authorEmail,
-  //   isAdmin,
-  //   authData
-  // })
-
   return isAdmin || (!!authorEmail && !!myEmail && authorEmail === myEmail)
 })
 
@@ -103,7 +105,7 @@ const loadPost = async () => {
     form.category = data.category
     form.amount = data.amount
     form.content = data.content
-    form.deadline = data.deadline
+    form.deadline = data.deadline ? dayjs(data.deadline) : null
 
     if (data.imageUrls?.length) {
       previewImages.value = data.imageUrls.map((url, idx) => ({
@@ -142,6 +144,39 @@ const loadPost = async () => {
 }
 onMounted(loadPost)
 
+const validateForm = () => {
+  if (!form.title || form.title.length > 100) {
+    message.error('제목은 1~100자 이내로 입력해주세요.')
+    return false
+  }
+  if (!form.content || form.content.length < 10 || form.content.length > 5000) {
+    message.error('내용은 10자 이상 5000자 이하로 입력해주세요.')
+    return false
+  }
+  const amountNum = Number(form.amount)
+  if (amountNum < 100 || amountNum > 1_000_000_000) {
+    message.error('목표 금액은 100원 이상 10억 이하로 입력해주세요.')
+    return false
+  }
+  if (amountNum % 100 !== 0) {
+    message.error('목표 금액은 100원 단위로 입력해주세요.')
+    return false
+  }
+  if (!form.deadline) {
+    message.error('마감일을 선택해주세요.')
+    return false
+  }
+  const today = dayjs()
+  if (form.deadline.isBefore(today, 'day')) {
+    message.error('마감일은 오늘 이후여야 합니다.')
+    return false
+  }
+  if (form.deadline.isAfter(today.add(1, 'year'))) {
+    message.error('마감일은 1년 이내여야 합니다.')
+    return false
+  }
+  return true
+}
 // 수정 제출
 const onSubmit = async () => {
   if (!canEdit.value) return
@@ -163,32 +198,13 @@ const onSubmit = async () => {
       amount: Number(form.amount),
       content: form.content,
       imageUrls,
-      // deadline 제외
+      deadline: form.deadline ? form.deadline.format('YYYY-MM-DD') : null
     }
     await postStore.updatePost(postId, payload)
     message.success('글이 성공적으로 수정되었습니다!')
     router.push(`/posts/${postId}`)
   } catch (err) {
-    if (err?.response?.status === 401) {
-      Modal.warning({
-        title: '로그인이 필요합니다',
-        content: '로그인 후 다시 시도해주세요.',
-        onOk: () => router.push('/login'),
-      })
-    } else if (err?.response?.status === 403) {
-      Modal.error({
-        title: '권한 없음',
-        content: '이 글을 수정할 권한이 없습니다.',
-        onOk: () => router.replace(`/posts/${postId}`),
-      })
-    } else if (err?.response?.status === 404) {
-      message.error('존재하지 않는 게시글입니다.')
-      router.replace('/posts')
-    } else if (err?.code === 'ERR_NETWORK') {
-      message.error('서버와 연결할 수 없습니다. 잠시 후 다시 시도해주세요.')
-    } else {
-      message.error(err?.response?.data?.message || '수정 중 오류가 발생했습니다.')
-    }
+    message.error(err?.response?.data?.message || '수정 중 오류가 발생했습니다.')
   } finally {
     submitting.value = false
   }
@@ -247,9 +263,14 @@ const categories = [
           </a-col>
         </a-row>
 
-        <!-- 마감일 (수정 불가, 표시만) -->
-        <a-form-item label="기부 마감일" name="deadline">
-          <a-input v-model:value="form.deadline" size="large" disabled />
+        <!-- 마감일 (수정 가능) -->
+        <a-form-item label="기부 마감일" name="deadline" required>
+          <a-date-picker
+            v-model:value="form.deadline"
+            style="width: 100%"
+            size="large"
+            :disabled-date="(current) => current && current < Date.now()"
+          />
         </a-form-item>
 
         <!-- 내용 -->
