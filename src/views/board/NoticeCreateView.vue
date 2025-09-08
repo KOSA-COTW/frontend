@@ -55,6 +55,14 @@ const validateForm = () => {
     message.error('제목과 내용을 모두 입력해주세요.')
     return false
   }
+  if (form.title.length > 100) {
+    message.error('제목은 100자 이하로 입력해주세요.')
+    return false
+  }
+  if (form.content.length > 5000) {
+    message.error('내용은 5000자 이하로 입력해주세요.')
+    return false
+  }
   return true
 }
 
@@ -85,7 +93,12 @@ const onSubmit = async () => {
     router.push('/notices')
   } catch (err) {
     console.error('❌ Notice Create Error:', err)
-    message.error('등록 중 오류가 발생했습니다.')
+    const backendMsg = err.response?.data?.message
+    if (backendMsg) {
+      message.error(backendMsg)
+    } else {
+      message.error('등록 중 알 수 없는 오류가 발생했습니다.')
+    }
   } finally {
     submitting.value = false
   }
@@ -105,6 +118,7 @@ const saveEdit = async () => {
     await postAPI.updateNotice(editingId.value, {
       title: editTitle.value,
       content: editContent.value,
+      isPinned: form.isPinned,
       imageUrls,
     })
 
