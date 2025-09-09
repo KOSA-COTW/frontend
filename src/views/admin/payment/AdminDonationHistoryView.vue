@@ -53,6 +53,29 @@
       </a-table>
     </a-card>
 
+    <!-- 카테고리별 기부금액 순위 -->
+    <a-card title="카테고리별 기부금액 순위" class="category-ranking-card">
+      <a-table 
+        :columns="categoryColumns" 
+        :dataSource="categoryStats" 
+        :loading="categoryLoading"
+        :pagination="false"
+        row-key="category"
+        size="middle"
+      >
+        <template #bodyCell="{ column, text, record, index }">
+          <template v-if="column.dataIndex === 'rank'">
+            <a-tag :color="getCategoryRankColor(index + 1)">
+              {{ index + 1 }}위
+            </a-tag>
+          </template>
+          <template v-else-if="column.dataIndex === 'totalAmount'">
+            {{ formatAmount(text) }}원
+          </template>
+        </template>
+      </a-table>
+    </a-card>
+
     <!-- 전체 기부 내역 -->
     <a-card title="전체 기부 내역" class="all-donations-card">
       <div class="toolbar">
@@ -106,6 +129,7 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
 import { getDashboardStats, getTopDonors, getDonations } from '@/utils/adminDonation.js'
+import axios from '@/utils/axios'
 
 const loading = ref(false)
 const totalAmount = ref(0)
@@ -115,6 +139,9 @@ const topDonors = ref([])
 const allDonations = ref([])
 const searchText = ref('')
 const statusFilter = ref(undefined)
+
+const categoryStats = ref([])
+const categoryLoading = ref(false)
 
 const donationPagination = reactive({
   current: 1,
@@ -131,6 +158,27 @@ const donorColumns = [
   { title: '기부횟수', key: 'donationCount', width: 100, align: 'center' },
   { title: '최근 기부일', dataIndex: 'lastDonationDate', width: 160,
     customRender: ({ text }) => formatDateTime(text) }
+]
+
+const categoryColumns = [
+  {
+    title: '순위',
+    dataIndex: 'rank',
+    key: 'rank',
+    width: '80px',
+    align: 'center'
+  },
+  {
+    title: '카테고리명',
+    dataIndex: 'categoryName',
+    key: 'categoryName',
+  },
+  {
+    title: '총 기부금액',
+    dataIndex: 'totalAmount',
+    key: 'totalAmount',
+    align: 'right'
+  }
 ]
 
 // 문자열 ISO(yyyy-MM-ddTHH:mm:ss) → 공백으로 보기 좋게
@@ -198,6 +246,29 @@ const formatCurrency = (n) => new Intl.NumberFormat('ko-KR', {
   maximumFractionDigits: 0
 }).format(n ?? 0)
 
+const getCategoryRankColor = (rank) => {
+  if (rank === 1) return 'gold'
+  if (rank === 2) return 'silver' 
+  if (rank === 3) return 'orange'
+  return 'green'
+}
+
+const formatAmount = (amount) => {
+  return new Intl.NumberFormat('ko-KR').format(amount)
+}
+
+const fetchCategoryStats = async () => {
+  categoryLoading.value = true
+  try {
+    const response = await axios.get('/api/admin/stats/categories')
+    categoryStats.value = response
+  } catch (error) {
+    console.error('카테고리 통계 조회 실패:', error)
+  } finally {
+    categoryLoading.value = false
+  }
+}
+
 async function loadDashboard() {
   loading.value = true
   try {
@@ -248,6 +319,7 @@ function resetSearch() {
 
 onMounted(() => {
   loadDashboard()
+  fetchCategoryStats()
 })
 </script>
 
@@ -289,6 +361,7 @@ onMounted(() => {
 }
 
 .top-donors-card,
+.category-ranking-card,
 .all-donations-card {
   margin: 20px 0;
   border-radius: 8px;
