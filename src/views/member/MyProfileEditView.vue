@@ -129,7 +129,7 @@ const loadingInfo = ref(true)
 
 const loadInfo = async () => {
   try {
-    const { data } = await axios.get('/api/info')
+    const data = await axios.get('/api/info')
     userInfo.email = data.email ?? null
     userInfo.nickname = data.nickname ?? null
     userInfo.pictureUrl = data.pictureUrl ?? null
