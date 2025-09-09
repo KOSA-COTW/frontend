@@ -122,6 +122,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { message } from 'ant-design-vue'
 import axios from 'axios'
+import api from '@/utils/axios.js'
 
 
 const router = useRouter()
@@ -179,7 +180,7 @@ const referralLink = computed(() =>
 const information = async () => {
   loading.value = true
   try {
-    const info = await axios.get('/api/info')
+    const info = await api.get('/api/info')
 
     userInfo.email = info.email ?? null
     userInfo.name = info.name ?? null
