@@ -110,7 +110,12 @@ const mainColor = '#00C851'
 /* 날짜 선택/새로고침 */
 const dateRange = ref([])
 const onChangeRange = (val) => { dateRange.value = val }
-const reload = () => { loadDashboard(); message.success('대시보드를 새로고침 했습니다.') }
+const reload = () => {
+  dateRange.value = []   // ✅ 완전 초기화 (placeholder 상태로)
+  loadDashboard()
+  message.success('대시보드를 새로고침 했습니다.')
+}
+
 const goToDonationHistory = () => router.push({ name: 'adminDonationHistory' })
 const goToCommentList = () => router.push({ name: 'adminComments' })
 
@@ -130,7 +135,8 @@ const daily = ref({ labels: [], values: [] })
 /* 현재 연월 표시 */
 const currentMonth = computed(() => {
   if (!daily.value || daily.value.labels.length === 0) return ''
-  return dayjs(daily.value.labels[0]).format('YYYY-MM')
+  // ✅ 마지막 라벨 기준으로 표시
+  return dayjs(daily.value.labels.at(-1)).format('YYYY-MM')
 })
 
 /* 상태/사유 매핑 */
@@ -211,7 +217,12 @@ let chart
 const drawChart = async () => {
   await nextTick()
   if (!chartRef.value || !daily.value) return
-  if (!chart) chart = echarts.init(chartRef.value)
+
+  // ✅ 기존 차트 완전 재생성
+  if (chart) {
+    chart.dispose()
+  }
+  chart = echarts.init(chartRef.value)
 
   chart.setOption({
     tooltip: {
@@ -242,7 +253,7 @@ const drawChart = async () => {
       itemStyle: { color: mainColor },
       data: daily.value.values
     }]
-  })
+  }, true)  // ✅ notMerge = true (옵션 완전 덮어쓰기)
 }
 
 onMounted(() => {
