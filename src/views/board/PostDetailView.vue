@@ -73,7 +73,6 @@ const REPORT_REASONS = [
   { label: '기타', value: 'ETC' },
 ]
 
-
 // 댓글 권한 확인
 const isAdmin = computed(() => {
   const storedAuth = JSON.parse(localStorage.getItem('auth') || '{}')
@@ -93,7 +92,7 @@ const canManageComment = (comment) => {
     persisted?.user?.id ??
     persisted?.user?.memberId ??
     persisted?.memberId ??
-    auth?.user?.id ??               // 핀리아 스토어에 user가 있다면
+    auth?.user?.id ??
     auth?.user?.memberId
   )
   const myEmailRaw =
@@ -135,6 +134,20 @@ const safeComments = computed(() =>
     .filter(c => c.isPublic !== false || canManageComment(c))
 )
 
+// 🔐 로그인 체크 헬퍼
+function requireLogin(action) {
+  if (!auth.isLoggedIn) {
+    Modal.warning({
+      title: '로그인이 필요합니다',
+      content: '로그인 후 다시 시도해주세요.',
+      onOk: () => router.push('/login'),
+    })
+    return false
+  }
+  if (typeof action === 'function') action()
+  return true
+}
+
 onMounted(async () => {
   try {
     post.value = await postStore.fetchPostDetail(postId.value)
@@ -175,50 +188,21 @@ async function onLoadMore() {
   await commentStore.loadMore(postId.value)
 }
 
-// 라우트 id 변경 시 갱신
-watch(() => route.params.id, async (newId) => {
-  if (!newId) return
-  loading.value = true
-  try {
-    const detail = await postStore.fetchPostDetail(Number(newId))
-    post.value = detail
-    activeImage.value = detail?.imageUrls?.[0] || ''
-    await loadComments(Number(newId))
-  } catch (e) {
-    console.error('[라우트 변경] 상세/댓글 로딩 실패:', e)
-    error.value = '게시글을 불러오는 중 오류가 발생했습니다.'
-  } finally {
-    loading.value = false
-  }
-})
-
 // 댓글 작성
 async function addComment() {
-  if (!newComment.value.trim()) {
+  const value = newComment.value.trim()
+  if (!value) {
     message.warning('댓글 내용을 입력해주세요.')
     return
   }
-  if (!auth.isLoggedIn) {
-    Modal.warning({
-      title: '로그인이 필요합니다',
-      content: '댓글을 작성하려면 로그인해주세요.',
-      onOk: () => router.push('/login'),
-    })
-    return
-  }
+  if (!requireLogin()) return
   try {
-    await commentStore.addComment(postId.value, newComment.value.trim())
+    await commentStore.addComment(postId.value, value)
     newComment.value = ''
     message.success('댓글이 등록되었습니다.')
   } catch (err) {
-    const status = err?.response?.status
-    if (status === 401) {
-      Modal.warning({
-        title: '로그인이 필요합니다',
-        content: '로그인 후 다시 시도해주세요.',
-        onOk: () => router.push('/login'),
-      })
-    } else if (status === 403) {
+    const code = err?.response?.data?.errorCode
+    if (code === 'COMMENT_ACCESS_DENIED') {
       message.error('댓글 작성 권한이 없습니다.')
     } else {
       message.error(err?.response?.data?.message || '댓글 작성에 실패했습니다.')
@@ -354,18 +338,13 @@ async function deletePost() {
 
 // 좋아요 클릭
 async function onToggleLike(c) {
-  if (!isLoggedIn.value) {
-    message.warning('로그인이 필요합니다.')
-    router.push('/login')
-    return
-  }
+  if (!requireLogin()) return
   try {
     await commentStore.toggleLike(c.id)
   } catch (err) {
-    const code = err?.response?.status
-    if (code === 401) {
-      message.warning('로그인이 필요합니다.')
-      router.push('/login')
+    const code = err?.response?.data?.errorCode
+    if (code === 'COMMENT_NOT_FOUND') {
+      message.error('존재하지 않는 댓글입니다.')
     } else {
       message.error(err?.response?.data?.message || '좋아요 처리 중 오류가 발생했습니다.')
     }
@@ -378,34 +357,43 @@ async function onToggleLike(c) {
 const reportModalVisible = ref(false)
 const reportTargetId = ref(null)
 const selectedReason = ref(REPORT_REASONS[0].value)
+const customDetail = ref('')
 const submittingReport = ref(false)
 
 function openReport(c) {
-  if (!isLoggedIn.value) {
-    message.warning('로그인이 필요합니다.')
-    router.push('/login')
-    return
-  }
+  if (!requireLogin()) return
   reportTargetId.value = c.id
   selectedReason.value = REPORT_REASONS[0].value
+  customDetail.value = ''
   reportModalVisible.value = true
 }
 
 async function submitReport() {
   if (!reportTargetId.value) return
+
+  // ETC면 상세 필수
+  if (selectedReason.value === 'ETC' && !customDetail.value.trim()) {
+    message.warning('기타 사유를 선택한 경우 상세 내용을 입력해주세요.')
+    return
+  }
+
   submittingReport.value = true
   try {
-    await commentStore.reportComment(reportTargetId.value, selectedReason.value)
+    // ⚠️ stores/comment.js & utils/comment.js에서 reason+detail을 받도록 함께 수정해야 합니다.
+    await commentStore.reportComment(reportTargetId.value, {
+      reason: selectedReason.value,
+      detail: customDetail.value.trim() || null
+    })
     message.success('신고가 접수되었습니다.')
     reportModalVisible.value = false
   } catch (err) {
-    const status = err?.response?.status
-    if (status === 409) {
+    const code = err?.response?.data?.errorCode
+    if (code === 'ALREADY_REPORTED') {
       message.warning('이미 신고한 댓글입니다.')
-    } else if (status === 429) {
+    } else if (code === 'REPORT_DAILY_LIMIT') {
       message.warning('하루 신고 한도를 초과했습니다.')
-    } else if (status === 400) {
-      message.error(err?.response?.data?.message || '잘못된 요청입니다.')
+    } else if (code === 'REPORT_DETAIL_REQUIRED') {
+      message.warning('기타 사유 상세를 입력해주세요.')
     } else {
       message.error(err?.response?.data?.message || '신고 처리 중 오류가 발생했습니다.')
     }
@@ -442,11 +430,7 @@ function editPost() {
 
 // 기부 모달 / 결제
 function openDonationModal() {
-  if (!auth.isLoggedIn) {
-    message.warning('로그인이 필요합니다.')
-    router.push('/login')
-    return
-  }
+  if (!requireLogin()) return
   if (isAdmin.value) {
     router.push(`/admin/donations/${postId.value}`)
     return
@@ -598,14 +582,14 @@ function proceedToPayment() {
 
           <!-- 댓글 입력 -->
           <div class="comment-input-row">
-            <a-input
+            <a-textarea
               v-model:value="newComment"
-              placeholder="따뜻한 댓글을 남겨주세요!"
-              @keyup.enter="addComment"
+              placeholder="따뜻한 댓글을 남겨주세요! "
               :disabled="commentsLoading"
               allow-clear
-              size="large"
+              :auto-size="{ minRows: 1, maxRows: 5 }"
               style="width:70%;margin-right:8px;"
+              @pressEnter="(e) => { if (!e.shiftKey) { e.preventDefault(); addComment(); } }"
             />
             <a-button
               type="primary"
@@ -764,6 +748,16 @@ function proceedToPayment() {
       <a-radio-group v-model:value="selectedReason" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
         <a-radio v-for="r in REPORT_REASONS" :key="r.value" :value="r.value">{{ r.label }}</a-radio>
       </a-radio-group>
+
+      <!-- ETC 선택 시 상세 입력 -->
+      <a-textarea
+        v-if="selectedReason === 'ETC'"
+        v-model:value="customDetail"
+        placeholder="상세 사유를 입력해주세요"
+        rows="3"
+        style="margin-top:10px;"
+      />
+
       <div style="margin-top:10px;color:#999;font-size:12px;">
         허위 신고 시 이용 제한될 수 있습니다.
       </div>
@@ -831,7 +825,6 @@ function proceedToPayment() {
 
   <div v-else style="text-align:center;padding:100px 0;">잘못된 접근입니다.</div>
 </template>
-
 
 <style scoped>
 .comment-toolbar {

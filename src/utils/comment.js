@@ -1,4 +1,3 @@
-// utils/comment.js
 import api from './axios.js'
 
 function buildAccessConfig(extra = {}) {
@@ -19,10 +18,7 @@ function buildAccessConfig(extra = {}) {
   return extra
 }
 
-/**
- * Axios 인터셉터에서 response.data 만 반환하도록 설정되어 있음.
- * → 아래 메서드들은 모두 res(=data) 그대로 반환합니다.
- */
+
 export const commentAPI = {
   // 목록 (정렬 + 페이지네이션)
   getComments: async (postId, sort = 'LATEST', page = 0, size = 10) => {
@@ -36,70 +32,52 @@ export const commentAPI = {
 
   // 작성
   createComment: async (postId, content) => {
-    try {
-      const res = await api.post(
-        '/api/comments',
-        { postId, content },
-        buildAccessConfig(),
-      )
-      return res
-    } catch (error) {
-      throw error
-    }
+    return await api.post(
+      '/api/comments',
+      { postId, content },
+      buildAccessConfig(),
+    )
   },
 
   // 수정
   updateComment: async (commentId, content) => {
-    try {
-      const res = await api.patch(
-        `/api/comments/${commentId}`,
-        { content },
-        buildAccessConfig(),
-      )
-      return res
-    } catch (error) {
-      throw error
-    }
+    return await api.patch(
+      `/api/comments/${commentId}`,
+      { content },
+      buildAccessConfig(),
+    )
   },
 
   // 삭제
   deleteComment: async (commentId) => {
-    try {
-      const res = await api.delete(
-        `/api/comments/${commentId}`,
-        buildAccessConfig(),
-      )
-      return res
-    } catch (error) {
-      throw error
-    }
+    return await api.delete(
+      `/api/comments/${commentId}`,
+      buildAccessConfig(),
+    )
   },
 
   // ✅ 좋아요
   like: async (commentId) => {
-    const res = await api.post(
+    return await api.post(
       `/api/comments/${commentId}/likes`,
       null,
       buildAccessConfig(),
     )
-    return res
   },
 
   unlike: async (commentId) => {
-    const res = await api.delete(
+    return await api.delete(
       `/api/comments/${commentId}/likes`,
       buildAccessConfig(),
     )
-    return res
   },
 
-  // ✅ 신고
-  report: async (commentId, reason) => {
-    const res = await api.post(
+  report: async (commentId, payload) => {
+    const body = typeof payload === 'string' ? { reason: payload } : payload
+    return await api.post(
       `/api/comments/${commentId}/reports`,
-      { reason }, // e.g. 'SPAM' | 'ABUSE' | 'INAPPROPRIATE'
+      body,
       buildAccessConfig(),
     )
-    return res
   },
 }
