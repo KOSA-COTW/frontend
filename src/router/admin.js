@@ -36,7 +36,7 @@ export const adminRoutes = [
       {
         path: 'payments/view',
         name: 'adminPaymentView',
-        component: () => import('@/views/admin/payment/AdminPaymentView.vue'),
+        component: () => import('@/views/admin/payment/AdminpaymentView.vue'),
         meta: { requiresAdmin: true }
       },
 
@@ -78,25 +78,6 @@ export const adminRoutes = [
         props: true
       },
 
-      // 통계
-      {
-        path: 'stats',
-        name: 'adminStats',
-        component: () => import('@/views/admin/statistics/AdminStatsView.vue'),
-        meta: { requiresAdmin: true }
-      },
-      {
-        path: 'stats/donation-top10',
-        name: 'adminDonationTop10',
-        component: () => import('@/views/admin/statistics/AdminDonationTop10View.vue'),
-        meta: { requiresAdmin: true }
-      },
-      {
-        path: 'stats/category-ranking',
-        name: 'adminCategoryRanking',
-        component: () => import('@/views/admin/statistics/AdminCategoryRankingView.vue'),
-        meta: { requiresAdmin: true }
-      }
     ]
   }
 ]
