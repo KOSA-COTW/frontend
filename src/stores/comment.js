@@ -1,6 +1,6 @@
-// stores/comment.js
+
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { commentAPI } from '@/utils/comment'
 
 export const useCommentStore = defineStore('comment', () => {
@@ -66,7 +66,7 @@ export const useCommentStore = defineStore('comment', () => {
       await commentAPI.createComment(postId, content.trim())
       await fetchComments(postId, sortMode.value) // ✅ 현재 정렬 유지
     } catch (err) {
-      error.value = err.response?.data?.message || '댓글 작성에 실패했습니다.'
+      error.value = err?.response?.data?.message || '댓글 작성에 실패했습니다.'
       throw err
     }
   }
@@ -78,7 +78,7 @@ export const useCommentStore = defineStore('comment', () => {
       if (idx !== -1) comments.value[idx] = { ...comments.value[idx], ...updated }
       return updated
     } catch (err) {
-      error.value = err.response?.data?.message || '댓글 수정에 실패했습니다.'
+      error.value = err?.response?.data?.message || '댓글 수정에 실패했습니다.'
       throw err
     }
   }
@@ -89,7 +89,7 @@ export const useCommentStore = defineStore('comment', () => {
       comments.value = comments.value.filter(c => c.id !== commentId)
       totalCount.value = Math.max(0, totalCount.value - 1)
     } catch (err) {
-      error.value = err.response?.data?.message || '댓글 삭제에 실패했습니다.'
+      error.value = err?.response?.data?.message || '댓글 삭제에 실패했습니다.'
       throw err
     }
   }
@@ -122,14 +122,20 @@ export const useCommentStore = defineStore('comment', () => {
     }
   }
 
-  const reportComment = async (commentId, reason) => {
+  const reportComment = async (commentId, payloadOrReason) => {
     if (reportLoading.value.has(commentId)) return
     reportLoading.value.add(commentId)
+
+    // 하위 호환: 문자열이 넘어오면 객체로 변환
+    const payload = typeof payloadOrReason === 'string'
+      ? { reason: payloadOrReason }
+      : (payloadOrReason || {})
 
     const idx = comments.value.findIndex(c => c.id === commentId)
     if (idx === -1) { reportLoading.value.delete(commentId); return }
 
     const before = comments.value[idx]
+    // 낙관적 업데이트
     comments.value[idx] = {
       ...before,
       reportCount: (before.reportCount ?? 0) + 1,
@@ -137,7 +143,7 @@ export const useCommentStore = defineStore('comment', () => {
     }
 
     try {
-      const res = await commentAPI.report(commentId, reason)
+      const res = await commentAPI.report(commentId, payload)
       comments.value[idx] = {
         ...comments.value[idx],
         reportCount: res?.totalReportCount ?? comments.value[idx].reportCount,
@@ -146,8 +152,9 @@ export const useCommentStore = defineStore('comment', () => {
         moderationDueAt: res?.moderationDue ?? comments.value[idx].moderationDueAt,
       }
     } catch (err) {
+      // 롤백
       comments.value[idx] = before
-      error.value = err.response?.data?.message || '신고 처리에 실패했습니다.'
+      error.value = err?.response?.data?.message || '신고 처리에 실패했습니다.'
       throw err
     } finally {
       reportLoading.value.delete(commentId)
