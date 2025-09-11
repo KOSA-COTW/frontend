@@ -15,33 +15,26 @@
         </a-avatar>
 
         <div class="avatar-actions">
-          <template v-if="canChangeAvatar">
-            <a-upload
-              :before-upload="beforeUpload"
-              :show-upload-list="false"
-              :max-count="1"
-              accept="image/png,image/jpeg,image/jpg,image/webp"
+          <a-upload
+            :before-upload="beforeUpload"
+            :show-upload-list="false"
+            :max-count="1"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+          >
+            <a-button>사진 선택</a-button>
+          </a-upload>
+          <div class="hint">PNG/JPG/WebP, 2MB 이하 권장</div>
+          <div class="action-buttons">
+            <a-button
+              type="primary"
+              :disabled="!avatarFile"
+              :loading="savingAvatar"
+              @click="saveAvatar"
             >
-              <a-button>사진 선택</a-button>
-            </a-upload>
-            <div class="hint">PNG/JPG/WebP, 2MB 이하 권장</div>
-            <div class="action-buttons">
-              <a-button
-                type="primary"
-                :disabled="!avatarFile"
-                :loading="savingAvatar"
-                @click="saveAvatar"
-              >
-                사진 저장
-              </a-button>
-              <a-button v-if="avatarFile" @click="resetAvatar" :disabled="savingAvatar">취소</a-button>
-            </div>
-          </template>
-          <template v-else>
-            <div class="hint blocked">
-              소셜 로그인 계정({{ userInfo.provider }})은 프로필 사진을 변경할 수 없어요.
-            </div>
-          </template>
+              사진 저장
+            </a-button>
+            <a-button v-if="avatarFile" @click="resetAvatar" :disabled="savingAvatar">취소</a-button>
+          </div>
         </div>
       </div>
     </a-card>
@@ -70,6 +63,7 @@
             html-type="submit"
             :loading="savingNick"
             :disabled="!canSubmitNick"
+            @click="debouncedCheckNickname"
           >
             닉네임 저장
           </a-button>
@@ -79,7 +73,8 @@
     </a-card>
 
     <!-- 비밀번호 변경 -->
-    <a-card class="card">
+
+    <a-card class="card" v-if="isLocal">
       <template #title>비밀번호 변경</template>
       <a-form layout="vertical" @submit.prevent="savePassword">
         <a-form-item label="현재 비밀번호" :validate-status="v.current.status" :help="v.current.help">
@@ -122,6 +117,8 @@ import { message } from 'ant-design-vue'
 import axios from '@/utils/axios'
 
 const router = useRouter()
+const user = localStorage.getItem('auth')
+const accessToken = user ? JSON.parse(user).accessToken : null
 
 // ---- 사용자 정보 로드 (아바타/닉네임 프리뷰용) ----
 const userInfo = reactive({ email: null, nickname: null, pictureUrl: null, provider: null})
@@ -129,7 +126,7 @@ const loadingInfo = ref(true)
 
 const loadInfo = async () => {
   try {
-    const { data } = await axios.get('/api/info')
+    const data = await axios.get('/api/info')
     userInfo.email = data.email ?? null
     userInfo.nickname = data.nickname ?? null
     userInfo.pictureUrl = data.pictureUrl ?? null
@@ -151,14 +148,7 @@ const avatarFile = ref(null)
 const avatarPreview = ref('')
 const savingAvatar = ref(false)
 
-// provider가 LOCAL인 경우만 아바타 변경 허용
-const canChangeAvatar = computed(() => (userInfo.provider || '').toUpperCase() === 'LOCAL')
-
 const beforeUpload = (file) => {
-  if (!canChangeAvatar.value) {
-    message.warning('소셜 로그인 계정은 프로필 사진을 변경할 수 없어요.')
-    return false
-  }
   const isImage = /image\/(png|jpeg|webp|jpg)/.test(file.type)
   const isLt2M = file.size / 1024 / 1024 < 2
   if (!isImage) message.warning('이미지 파일만 업로드할 수 있어요.')
@@ -177,10 +167,6 @@ const resetAvatar = () => {
 }
 
 const saveAvatar = async () => {
-  if (!canChangeAvatar.value) {
-    message.warning('소셜 로그인 계정은 프로필 사진을 변경할 수 없어요.')
-    return
-  }
   if (!avatarFile.value) return
   savingAvatar.value = true
   try {
@@ -205,6 +191,8 @@ const originalNickname = ref('')
 const nickname = ref('')
 const savingNick = ref(false)
 const nv = reactive({ status: '', help: '' })
+const nicknameAvailable = ref(false)
+let nicknameCheckTimer = null
 
 const nickRules = computed(() => {
   const trimmed = nickname.value.trim()
@@ -213,6 +201,20 @@ const nickRules = computed(() => {
   const changed = trimmed !== originalNickname.value
   return { trimmed, lengthOK, patternOK, changed }
 })
+
+const checkNickname = async () => {
+  nicknameAvailable.value = false
+  if (!nickname.value) return
+  try {
+    const data = await axios.get('/api/members/dup-check/nickname', { params: { nickname: nickname }})
+    nicknameAvailable.value = !!data.available
+    if (!nicknameAvailable.value) message.warning('이미 사용 중인 별명입니다.')
+  } catch {}
+}
+const debouncedCheckNickname = () => {
+  clearTimeout(nicknameCheckTimer)
+  nicknameCheckTimer = setTimeout(checkNickname, 400)
+}
 
 const canSubmitNick = computed(() =>
   nickRules.value.lengthOK && nickRules.value.patternOK && nickRules.value.changed && !savingNick.value
@@ -267,6 +269,9 @@ const saveNickname = async () => {
 const pw = reactive({ current: '', new: '', confirm: '' })
 const savingPw = ref(false)
 const v = reactive({ current: { status: '', help: '' }, new: { status: '', help: '' }, confirm: { status: '', help: '' } })
+
+// 사용자 정보 로드 위/아래 아무데나
+const isLocal = computed(() => (userInfo.provider || '').toLowerCase() === 'local')
 
 const checks = computed(() => ({ length: pw.new.length >= 8, mix: /[A-Za-z]/.test(pw.new) && /\d/.test(pw.new) }))
 const canSubmitPw = computed(() => pw.current && pw.new && pw.confirm && checks.value.length && checks.value.mix && pw.new === pw.confirm)

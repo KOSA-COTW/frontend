@@ -85,8 +85,8 @@
     <!-- 회원 탈퇴 모달 -->
     <a-modal
       v-model:open="deleteOpen"
-      title="회원 탈퇴"
-      :ok-button-props="{ danger: true, disabled: !deletePassword }"
+      :title="isLocal ? '회원 탈퇴 (로컬 계정)' : '회원 탈퇴 (소셜 계정)'"
+      :ok-button-props="{ danger: true, disabled: deleteOkDisabled }"
       ok-text="탈퇴하기"
       cancel-text="취소"
       :confirm-loading="deleteLoading"
@@ -97,20 +97,42 @@
       class="danger-modal"
     >
       <div class="delete-box">
-        <p class="delete-text">정말 삭제하시겠습니까? 삭제를 원하신다면 현재 비밀번호를 입력해주세요.</p>
+        <p class="delete-text" v-if="isLocal">
+          정말 삭제하시겠습니까? <b>현재 비밀번호</b>를 입력해주세요.
+        </p>
+        <p class="delete-text" v-else>
+          정말 삭제하시겠습니까? 아래 입력창에 <b>회원탈퇴</b> 라고 정확히 입력해주세요.
+        </p>
+
         <a-descriptions :column="1" size="small" class="mini-desc">
           <a-descriptions-item label="계정 이메일">{{ userInfo.email || '-' }}</a-descriptions-item>
+          <a-descriptions-item label="로그인 유형">
+            {{ providerLabel || (isLocal ? '이메일' : '소셜') }}
+          </a-descriptions-item>
         </a-descriptions>
 
+        <!-- 로컬: 비밀번호 -->
         <a-input-password
+          v-if="isLocal"
           v-model:value="deletePassword"
           placeholder="현재 비밀번호"
           :disabled="deleteLoading"
-          @pressEnter="deletePassword && handleDelete()"
+          @pressEnter="!deleteOkDisabled && handleDelete()"
+        />
+
+        <!-- 소셜: 확인 문구 -->
+        <a-input
+          v-else
+          v-model:value="confirmText"
+          placeholder="회원탈퇴"
+          :disabled="deleteLoading"
+          @pressEnter="!deleteOkDisabled && handleDelete()"
         />
 
         <a-alert v-if="deleteError" type="error" :message="deleteError" show-icon banner class="mt8" />
-        <div class="danger-note">탈퇴 시 계정 정보가 30일 뒤 영구 삭제될 수 있습니다.</div>
+        <div class="danger-note">
+          탈퇴 시 계정 정보가 30일 뒤 영구 삭제될 수 있습니다.
+        </div>
       </div>
     </a-modal>
   </div>
@@ -121,9 +143,8 @@ import { onMounted, reactive, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { message } from 'ant-design-vue'
-import axios from 'axios'
 import api from '@/utils/axios.js'
-
+import axios from 'axios'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -212,25 +233,87 @@ const deleteOpen = ref(false)
 const deletePassword = ref('')
 const deleteLoading = ref(false)
 const deleteError = ref('')
-const openDeleteModal = () => { deleteError.value=''; deletePassword.value=''; deleteOpen.value = true }
-const closeDeleteModal = () => { deleteOpen.value=false; deleteLoading.value=false; deletePassword.value=''; deleteError.value='' }
+
+// 추가: 로컬/소셜 판별
+const isLocal = computed(() => (userInfo.provider || '').toLowerCase() === 'local')
+
+// 추가: 소셜 확인 문구
+const confirmText = ref('')
+const REQUIRED_KEYWORD = '회원탈퇴'
+
+// OK 버튼 활성화 분기
+const deleteOkDisabled = computed(() =>
+  isLocal.value ? !deletePassword.value : confirmText.value !== REQUIRED_KEYWORD
+)
+
+// 모달 열기/닫기 시 초기화 수정
+const openDeleteModal = () => {
+  deleteError.value = ''
+  deletePassword.value = ''
+  confirmText.value = ''
+  deleteOpen.value = true
+}
+const closeDeleteModal = () => {
+  deleteOpen.value = false
+  deleteLoading.value = false
+  deletePassword.value = ''
+  confirmText.value = ''
+  deleteError.value = ''
+}
+
+// 탈퇴 처리 분기
 const handleDelete = async () => {
-  if (!deletePassword.value) return
-  deleteLoading.value = true; deleteError.value = ''
+  if (deleteOkDisabled.value) return
+  deleteLoading.value = true
+  deleteError.value = ''
   try {
     const user = localStorage.getItem('auth')
     const accessToken = user ? JSON.parse(user).accessToken : null
-    // 프로젝트 컨벤션에 맞춰 POST 사용
-    await axios.post('/api/deactivate', { password: deletePassword.value }, { headers: { Authorization: `Bearer ${accessToken}` }})
+    if (isLocal.value) {
+      await axios.post('/api/deactivate/local', { password: deletePassword.value }, { headers: { Authorization: `Bearer ${accessToken}` }})
+    } else {
+      // 서버가 body를 안 받아도 무해. 필요 시 { confirmation: confirmText.value } 전달 가능
+      await axios.post('/api/deactivate/social', "",{ headers: { Authorization: `Bearer ${accessToken}` }})
+    }
     message.success('계정이 삭제되었습니다. 그동안 이용해 주셔서 감사합니다.')
-    closeDeleteModal(); auth.logout(); router.replace('/')
+    closeDeleteModal()
+    auth.logout()
+    router.replace('/')
   } catch (e) {
-    const msg = (e?.response?.status === 401 || e?.response?.status === 403)
-      ? '비밀번호가 올바르지 않습니다.'
-      : e?.response?.data?.message || '삭제 처리 중 오류가 발생했습니다.'
+    const msg =
+      e?.response?.data?.message ||
+      (isLocal.value
+        ? (e?.response?.status === 401 || e?.response?.status === 403
+          ? '비밀번호가 올바르지 않습니다.'
+          : '삭제 처리 중 오류가 발생했습니다.')
+        : '삭제 처리 중 오류가 발생했습니다.')
     deleteError.value = msg
-  } finally { deleteLoading.value = false }
+  } finally {
+    deleteLoading.value = false
+  }
 }
+
+// const handleDelete = async () => {
+//   if (!deletePassword.value) return
+//   deleteLoading.value = true; deleteError.value = ''
+//   try {
+//     // const user = localStorage.getItem('auth')
+//     // const accessToken = user ? JSON.parse(user).accessToken : null
+//     // 프로젝트 컨벤션에 맞춰 POST 사용
+//     if(userInfo.provider === 'LOCAL'){
+//       await axios.post('/api/deactivate/local', { password: deletePassword.value })
+//     }else{
+//       await axios.post('/api/deactivate/social')
+//     }
+//     message.success('계정이 삭제되었습니다. 그동안 이용해 주셔서 감사합니다.')
+//     closeDeleteModal(); auth.logout(); router.replace('/')
+//   } catch (e) {
+//     const msg = (e?.response?.status === 401 || e?.response?.status === 403)
+//       ? '비밀번호가 올바르지 않습니다.'
+//       : e?.response?.data?.message || '삭제 처리 중 오류가 발생했습니다.'
+//     deleteError.value = msg
+//   } finally { deleteLoading.value = false }
+// }
 
 // 초대 공유
 const copyInviteLink = async () => {
