@@ -25,17 +25,41 @@
             </a-button>
           </a-form>
           <!-- 로그인 폼 아래 -->
+<!--          <div class="social-login">-->
+<!--            <a :href="`${API_BASE}/oauth2/authorization/google`" class="oauth-link" aria-label="Sign in with Google">-->
+<!--              <img src="/button/google_login.png" alt="Sign in with Google" />-->
+<!--            </a>-->
+<!--            <a :href="`${API_BASE}/oauth2/authorization/kakao`" class="oauth-link kakao" aria-label="카카오로 로그인">-->
+<!--              <img src="/button/kakao_login.png" alt="카카오로 로그인" />-->
+<!--            </a>-->
+<!--            <a :href="`${API_BASE}/oauth2/authorization/naver`" class="oauth-link naver" aria-label="네이버로 로그인">-->
+<!--              <img src="/button/naver_login.png" alt="네이버로 로그인" />-->
+<!--            </a>-->
+<!--          </div>-->
+          <!-- 소셜 로그인 섹션 -->
           <div class="social-login">
-            <a :href="`${API_BASE}/oauth2/authorization/google`" class="oauth-link" aria-label="Sign in with Google">
-              <img src="/button/google_login.png" alt="Sign in with Google" />
+            <a :href="`${API_BASE}/oauth2/authorization/google`" class="oauth-btn google" aria-label="Sign in with Google">
+              <span class="btn-icon">
+                <img src="/button/google_logo.png" alt="Google" />
+              </span>
+              <span class="btn-text">Google로 로그인하기</span>
             </a>
-            <a :href="`${API_BASE}/oauth2/authorization/kakao`" class="oauth-link kakao" aria-label="카카오로 로그인">
-              <img src="/button/kakao_login.png" alt="카카오로 로그인" />
+
+            <a :href="`${API_BASE}/oauth2/authorization/kakao`" class="oauth-btn kakao" aria-label="Sign in with Kakao">
+              <span class="btn-icon">
+                <img src="/button/kakao_logo.png" alt="Kakao" />
+              </span>
+              <span class="btn-text">Kakao로 로그인하기</span>
             </a>
-            <a :href="`${API_BASE}/oauth2/authorization/naver`" class="oauth-link naver" aria-label="네이버로 로그인">
-              <img src="/button/naver_login.png" alt="네이버로 로그인" />
+
+            <a :href="`${API_BASE}/oauth2/authorization/naver`" class="oauth-btn naver" aria-label="Sign in with Naver">
+              <span class="btn-icon">
+                <img src="/button/naver_logo.png" alt="Naver" />
+              </span>
+              <span class="btn-text">Naver로 로그인하기</span>
             </a>
           </div>
+
 
         </div>
 
@@ -151,10 +175,6 @@ const handleSubmit = async () => {
 
 
   }catch (error) {
-      message.error("로그인에 실패하셨습니다. 다시 시도해주세요.")
-
-      console.error('로그인 에러:', error);
-
     const code = error?.response?.data?.error
     switch (code) {
       case 'ACCOUNT_DELETED': // 복구 플로우 진입
@@ -269,87 +289,113 @@ function goToSignUp() {
 }
 
 
+.oauth-btn .btn-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;  /* 이미지 비율 유지하며 버튼 영역에 맞게 크기 조정 */
+}
+
 .social-login {
   display: grid;
   gap: 10px;
   margin-top: 16px;
-  justify-content: center; /* 가운데 정렬 */
+  justify-content: center;
 }
 
-/* 클릭 영역까지 300x45로 고정 */
-.oauth-link {
-  display: inline-block;
-  width: 300px;
-  height: 45px;
-}
-
-/* 이미지를 박스에 정확히 맞추기 */
-.oauth-link img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain; /* 원본 비율 유지, 필요 시 cover로 변경 */
-  display: block;      /* 밑줄/여백 제거 */
-}
-
-
-.social-btn {
-  height: 44px;
-  padding: 0;
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-.btn-inner {
-  display: inline-flex;
+/* 소셜 로그인 버튼 스타일 */
+.oauth-btn {
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  width: 100%;
+  width: 300px;
+  height: 45px;
+  padding: 0;
+  border-radius: 8px;
+  font-weight: bold;
+  text-decoration: none;
 }
 
-.btn-icon {
-  width: 18px;
-  height: 18px;
-  display: inline-block;
+.oauth-btn .btn-icon {
+  width: 40px;  /* 로고 사이즈 40px */
+  height: 40px; /* 로고 사이즈 40px */
+  overflow: hidden;
+  margin-right: 10px;  /* .btn-text 기준으로 10px 간격 */
 }
 
-/* Google (화이트 버튼) */
-.google-btn {
+.oauth-btn .btn-text {
+  flex: 1;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Google */
+.oauth-btn.google {
   background: #ffffff;
   border: 1px solid #dadce0;
-  color: #3c4043;
 }
-.google-btn:hover { border-color: #c6c6c6; }
-.google-btn:active { border-color: #a8a8a8; }
-.google-btn[disabled],
-.google-btn.ant-btn-loading { opacity: .8; }
+
+.oauth-btn.google:hover {
+  border-color: #c6c6c6;
+}
+
+.oauth-btn.google:active {
+  border-color: #a8a8a8;
+}
 
 /* Kakao */
-.kakao-btn {
+.oauth-btn.kakao {
   background: #FEE500;
   border-color: #FEE500;
   color: #191600;
 }
-.kakao-btn:hover { filter: brightness(0.98); }
-.kakao-btn:active { filter: brightness(0.96); }
-.kakao-btn[disabled],
-.kakao-btn.ant-btn-loading { opacity: .9; }
+
+.oauth-btn.kakao:hover {
+  filter: brightness(0.98);
+}
+
+.oauth-btn.kakao:active {
+  filter: brightness(0.96);
+}
 
 /* Naver */
-.naver-btn {
+.oauth-btn.naver {
   background: #03C75A;
   border-color: #03C75A;
   color: #ffffff;
 }
-.naver-btn:hover { filter: brightness(1.03); }
-.naver-btn:active { filter: brightness(0.98); }
-.naver-btn[disabled],
-.naver-btn.ant-btn-loading { opacity: .9; }
 
+.oauth-btn.naver:hover {
+  filter: brightness(1.03);
+}
+
+.oauth-btn.naver:active {
+  filter: brightness(0.98);
+}
+
+/* 아이디 기억하기 체크박스 */
+:deep(.ant-checkbox-checked .ant-checkbox-inner) {
+  background-color: #00c851 !important; /* 테마 색상 */
+  border-color: #00c851 !important;    /* 테마 색상 */
+}
+
+:deep(.ant-checkbox-input:focus + .ant-checkbox-inner) {
+  border-color: #00c851 !important;    /* 테마 색상 */
+}
 
 /* --------------------
    🔽 반응형 스타일
 -------------------- */
+
+/* 작은 모바일 화면 대응 */
+@media (max-width: 576px) {
+  .oauth-btn {
+    width: 100%;
+  }
+
+  .btn-text {
+    font-size: 12px;
+  }
+}
 
 /* 작은 모바일 화면 대응 */
 @media (max-width: 576px) {
@@ -406,4 +452,15 @@ function goToSignUp() {
     font-size: 1.75rem;
   }
 }
+/* 반응형 스타일 */
+@media (max-width: 576px) {
+  .oauth-btn {
+    width: 100%;
+  }
+
+  .btn-text {
+    font-size: 12px;
+  }
+}
+
 </style>

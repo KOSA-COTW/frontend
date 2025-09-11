@@ -48,7 +48,8 @@ const router = createRouter({
     {
       path: '/oauth2/success',
       name: 'oauthSuccess',
-      component: () => import('@/views/auth/OAuth2SuccessView.vue')
+      component: () => import('@/views/auth/OAuth2SuccessView.vue'),
+      meta: { public: true, oauthCallback: true }
     },
     {
       path: '/mypage',
