@@ -270,6 +270,7 @@ const checkEmail = async () => {
     if (!emailAvailable.value) message.warning('이미 사용 중인 이메일입니다.')
   } catch {}
 }
+
 const checkNickname = async () => {
   nicknameAvailable.value = false
   if (!form.nickname) return
@@ -279,10 +280,12 @@ const checkNickname = async () => {
     if (!nicknameAvailable.value) message.warning('이미 사용 중인 별명입니다.')
   } catch {}
 }
+
 const debouncedCheckEmail = () => {
   clearTimeout(emailCheckTimer)
   emailCheckTimer = setTimeout(checkEmail, 400)
 }
+
 const debouncedCheckNickname = () => {
   clearTimeout(nicknameCheckTimer)
   nicknameCheckTimer = setTimeout(checkNickname, 400)
@@ -301,7 +304,7 @@ const checkVerifyEmail = async () => {
   verifyEmailAvailable.value = false
   if (!verifyEmail.value) return
   try {
-    const data = await axios.get('/api/members/dup-check/email', { params: { email: verifyEmail.value }})
+    const data = await axios.get('/api/members/dup-check/verify-email', { params: { email: verifyEmail.value }})
     verifyEmailAvailable.value = !!data.available
     if (!verifyEmailAvailable.value) message.warning('이미 사용 중인 이메일입니다.')
   } catch {}
@@ -310,11 +313,6 @@ const debouncedCheckVerifyEmail = () => {
   clearTimeout(verifyEmailTimer)
   verifyEmailTimer = setTimeout(checkVerifyEmail, 400)
 }
-
-// Step1 → Step2 진입 시 프리필
-// watch(currentStep, (s) => {
-//   if (s === 1 && !verifyEmail.value && form.email) verifyEmail.value = form.email
-// })
 
 // ====== 이메일 인증 ======
 const emailVerified = ref(false)
