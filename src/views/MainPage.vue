@@ -90,7 +90,7 @@ const categories = [
           @click="goDetail(item.id)"
           style="cursor: pointer"
         >
-          <img :src="item.image || 'https://placehold.co/300x180'" class="donation-image" />
+          <img :src="item.image || '/post/default_post.png'" class="donation-image" />
 
           <div class="donation-text">
             <div class="category">#{{ item.category }}</div>
@@ -346,7 +346,7 @@ const categories = [
 
 .category-list {
   display: flex;
-  gap: 24px;
+  gap: 56px;
   padding: 8px 4px 20px 4px;
   min-width: fit-content;
 }
@@ -368,8 +368,8 @@ const categories = [
 }
 
 .category-circle {
-  width: 120px;
-  height: 120px;
+  width: 80px;
+  height: 80px;
   background: #f5f5f5;
   border-radius: 50%;
   display: flex;
@@ -396,8 +396,8 @@ const categories = [
 }
 
 .category-circle img {
-  width: 56px;
-  height: 56px;
+  width: 36px;
+  height: 36px;
   position: relative;
   z-index: 2;
   transition: all 0.3s ease;

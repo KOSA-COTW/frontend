@@ -531,7 +531,7 @@ function proceedToPayment() {
             </div>
           </div>
           <div v-else class="img-wrap">
-            <img class="main-img" src="https://placehold.co/300x180" />
+            <img class="main-img" src="/post/default_post.png" />
           </div>
         </div>
 
@@ -583,7 +583,7 @@ function proceedToPayment() {
         <!-- 댓글/한마디 영역 -->
         <div class="comment-section">
           <div class="comment-title">
-            따뜻한 <span style="color:#FFC107;">한마디</span>
+            따뜻한 <span style="color:#00C851;">한마디</span>
           </div>
 
           <!-- 정렬 탭 -->
@@ -989,7 +989,7 @@ function proceedToPayment() {
 
 .img-wrap {
   width: 100%;
-  height: 220px;
+  height: 350px;
   border-radius: 16px;
   position: relative;
   background: #f9f9f9;
@@ -998,7 +998,7 @@ function proceedToPayment() {
 
 .main-img {
   width: 100%;
-  height: 220px;
+  height: 350px;
   object-fit: cover;
   border-radius: 16px;
 }

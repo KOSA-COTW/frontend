@@ -37,8 +37,8 @@ const stats = [
 const values = [
   {
     icon: 'https://cdn-icons-png.flaticon.com/512/833/833472.png',
-    title: '투명성',
-    description: '모든 기부금의 사용 내역을 투명하게 공개합니다'
+    title: '현황 공개',
+    description: '모든 프로젝트의 진행 상황과 기부 현황을 누구나 확인할 수 있습니다'
   },
   {
     icon: 'https://cdn-icons-png.flaticon.com/512/1598/1598431.png',
@@ -47,8 +47,8 @@ const values = [
   },
   {
     icon: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
-    title: '신뢰성',
-    description: '검증된 단체와 프로젝트만을 엄선하여 소개합니다'
+    title: '검증된 프로젝트',
+    description: '관리자가 직접 검토한 프로젝트만 소개합니다'
   },
   {
     icon: 'https://cdn-icons-png.flaticon.com/512/921/921347.png',
@@ -67,7 +67,7 @@ const values = [
           <h1 class="logo">COTW</h1>
           <p class="logo-subtitle">Center of the World</p>
         </div>
-        
+
         <div class="hero-text">
           <h2 class="hero-title">세상의 중심은 어디일까요?</h2>
           <p class="hero-description">
@@ -96,9 +96,9 @@ const values = [
           <div class="heart"></div>
           <div class="heart"></div>
         </div>
-        <img 
-          src="https://cdn-icons-png.flaticon.com/512/833/833472.png" 
-          alt="hands helping" 
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/833/833472.png"
+          alt="hands helping"
           class="main-icon"
         />
       </div>
@@ -109,8 +109,8 @@ const values = [
       <div class="container">
         <h3 class="section-title">COTW와 함께한 변화</h3>
         <div class="stats-grid">
-          <div 
-            v-for="(stat, index) in stats" 
+          <div
+            v-for="(stat, index) in stats"
             :key="index"
             class="stat-item"
             :style="{ animationDelay: `${index * 0.1}s` }"
@@ -127,8 +127,8 @@ const values = [
       <div class="container">
         <h3 class="section-title">우리의 가치</h3>
         <div class="values-grid">
-          <div 
-            v-for="(value, index) in values" 
+          <div
+            v-for="(value, index) in values"
             :key="index"
             class="value-item"
             :style="{ animationDelay: `${index * 0.15}s` }"
@@ -157,7 +157,7 @@ const values = [
           <div class="step">
             <div class="step-number">2</div>
             <h4>프로젝트 확인</h4>
-            <p>기부금 사용처와 프로젝트 내용을 자세히 확인하세요</p>
+            <p>프로젝트 내용을 자세히 확인하세요</p>
           </div>
           <div class="step-arrow">→</div>
           <div class="step">
@@ -553,37 +553,37 @@ const values = [
     text-align: center;
     padding: 2rem 1rem;
   }
-  
+
   .hero-image {
     flex: none;
     margin-top: 2rem;
   }
-  
+
   .main-icon {
     width: 150px;
     height: 150px;
   }
-  
+
   .hero-title {
     font-size: 2rem;
   }
-  
+
   .logo {
     font-size: 3rem;
   }
-  
+
   .steps {
     flex-direction: column;
   }
-  
+
   .step-arrow {
     transform: rotate(90deg);
   }
-  
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .values-grid {
     grid-template-columns: 1fr;
   }
@@ -593,11 +593,11 @@ const values = [
   .hero-actions {
     flex-direction: column;
   }
-  
+
   .cta-button {
     width: 100%;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
   }

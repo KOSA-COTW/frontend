@@ -26,13 +26,6 @@
       </div>
 
       <div class="filter-area">
-        <a-input
-          v-model:value="authorFilter"
-          placeholder="작성자명"
-          style="width: 160px"
-          allow-clear
-          @change="handleSearch"
-        />
 
         <a-select
           v-model:value="categoryFilter"
@@ -86,7 +79,7 @@
           :class="{ 'completed-card': item.status === 'COMPLETED' }"
         >
           <div class="image-wrap">
-            <img :src="item.image || 'https://placehold.co/300x180'" class="donation-image" />
+            <img :src="item.image || '/post/default_post.png'" class="donation-image" />
             <!-- 완료 배지 -->
             <div v-if="item.status === 'COMPLETED'" class="overlay">
               <span class="overlay-text">모금 완료</span>
@@ -154,7 +147,6 @@ const route = useRoute()
 const posts = ref([])
 const loading = ref(false)
 const searchKeyword = ref('')
-const authorFilter = ref('')
 const categoryFilter = ref('ALL')
 const sortBy = ref('date-desc')
 const currentPage = ref(1)
@@ -179,7 +171,6 @@ const hasActiveFilters = computed(() => {
   return (
     searchKeyword.value ||
     (categoryFilter.value && categoryFilter.value !== 'ALL') ||
-    authorFilter.value ||
     sortBy.value !== 'date-desc'
   )
 })
@@ -201,9 +192,6 @@ const fetchPosts = async () => {
     if (searchKeyword.value) {
       params.title = searchKeyword.value
     }
-    if (authorFilter.value) {
-      params.authorName = authorFilter.value
-    }
 
     const res = await axios.get('/api/posts/paged', { params })
     posts.value = res.content
@@ -224,7 +212,6 @@ const handleSearch = () => {
 const resetFilters = () => {
   searchKeyword.value = ''
   categoryFilter.value = 'ALL'
-  authorFilter.value = ''
   sortBy.value = 'date-desc'
   currentPage.value = 1
   fetchPosts()
@@ -294,12 +281,23 @@ onMounted(() => {
   content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0.3); border-radius: 12px;
 }
 .overlay {
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  display: flex; align-items: center; justify-content: center;
-  border-top-left-radius: 12px; border-top-right-radius: 12px;
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: auto;
+  height: auto;
+  background: none;
 }
+
 .overlay-text {
-  color: #fff; font-size: 1.2rem; font-weight: bold;
-  background: rgba(0,0,0,0.65); padding: 8px 16px; border-radius: 999px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: bold;
+  background: rgba(0,0,0,0.65);
+  padding: 6px 12px;
+  border-radius: 999px;
 }
 </style>

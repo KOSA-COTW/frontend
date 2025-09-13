@@ -14,7 +14,7 @@ export const postAPI = {
     try {
       const response = await axios.get('/api/public/donation-total')
       return response.data.totalWon
-    }catch (e) {
+    } catch (e) {
       console.error('[DonationAPI] getDonationTotal failed: ', e)
       throw e
     }
@@ -113,6 +113,32 @@ export const postAPI = {
       console.error('[PostAPI] uploadImage failed:', error)
       throw error
     }
+  },
+
+  // 여러 이미지 업로드
+  uploadImages: async (files) => {
+    try {
+      const formData = new FormData()
+      files.forEach((file) => {
+        formData.append('files', file)
+      })
+
+      const response = await api.post('/api/posts/upload-multiple', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return response.url
+    } catch (error) {
+      console.error('[PostAPI] uploadImages failed:', error)
+      throw error
+    }
+  },
+
+  // presigned URL 발급
+  getPresignedUrl: async (fileName, contentType) => {
+    const response = await api.get('/api/posts/presigned-url', {
+      params: { fileName, contentType },
+    })
+    return response.url
   },
 
   // 승인 요청

@@ -4,6 +4,8 @@ import { message, Modal } from 'ant-design-vue'
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
 import { postAPI } from '@/utils/post'
+import imageCompression from 'browser-image-compression'
+import axios from 'axios'
 
 export default {
   name: 'DonationEditor',
@@ -28,9 +30,7 @@ export default {
     const submitting = ref(false)
 
     // ✅ 표시용 포맷
-    const amountDisplay = computed(() =>
-      form.amount ? Number(form.amount).toLocaleString() : '0'
-    )
+    const amountDisplay = computed(() => (form.amount ? Number(form.amount).toLocaleString() : '0'))
 
     // ✅ 헬퍼 함수
     const validateAmount = (value) => {
@@ -61,29 +61,35 @@ export default {
 
     // ✅ 파일 처리
     const triggerFileInput = () => fileInput.value?.click()
-    const handleFileSelect = (e) => {
+    const handleFileSelect = async (e) => {
       const files = Array.from(e.target.files || [])
       if (previewImages.value.length + files.length > 5) {
         message.warning('최대 5개의 이미지만 업로드할 수 있습니다.')
         return
       }
-      files.forEach((file) => {
+
+      for (const file of files) {
         if (file.size > 10 * 1024 * 1024) {
           message.error(`${file.name}은 10MB를 초과합니다.`)
-          return
+          continue
         }
-        const reader = new FileReader()
-        reader.onload = (ev) => {
-          previewImages.value.push({
-            file,
-            url: ev.target.result,
-            name: file.name,
-          })
+
+        let finalFile = file
+        if (file.size > 3 * 1024 * 1024) {
+          const options = { maxSizeMB: 2, maxWidthOrHeight: 1920 }
+          const compressedBlob = await imageCompression(file, options)
+          finalFile = new File([compressedBlob], file.name, { type: file.type })
         }
-        reader.readAsDataURL(file)
-      })
+
+        previewImages.value.push({
+          file: finalFile,
+          url: URL.createObjectURL(finalFile),
+          name: file.name,
+        })
+      }
       e.target.value = ''
     }
+
     const removeImage = (idx) => previewImages.value.splice(idx, 1)
 
     // ✅ 초기화
@@ -104,8 +110,7 @@ export default {
     // ✅ 검증
     const validateForm = () => {
       if (!form.title) return message.error('제목을 입력해주세요.'), false
-      if (form.title.length > 100)
-        return message.error('제목은 100자 이하로 입력해주세요.'), false
+      if (form.title.length > 100) return message.error('제목은 100자 이하로 입력해주세요.'), false
 
       if (!form.content) return message.error('내용을 입력해주세요.'), false
       if (form.content.length < 10 || form.content.length > 5000)
@@ -121,16 +126,14 @@ export default {
       if (!form.deadline) return message.error('마감일을 선택해주세요.'), false
       const today = dayjs().startOf('day')
       const deadline = dayjs(form.deadline).startOf('day')
-      if (deadline.isBefore(today))
-        return message.error('마감일은 오늘 이후여야 합니다.'), false
+      if (deadline.isBefore(today)) return message.error('마감일은 오늘 이후여야 합니다.'), false
       if (deadline.isAfter(today.add(1, 'year')))
         return message.error('마감일은 1년 이내로 설정해주세요.'), false
 
       if (previewImages.value.length > 5)
         return message.error('이미지는 최대 5개까지만 등록할 수 있습니다.'), false
 
-      if (!form.agreeTerms)
-        return message.error('이용약관에 동의해주세요.'), false
+      if (!form.agreeTerms) return message.error('이용약관에 동의해주세요.'), false
 
       return true
     }
@@ -140,14 +143,20 @@ export default {
       if (!validateForm()) return
       submitting.value = true
       try {
-        // 이미지 업로드
-        const imageUrls = []
-        for (const img of previewImages.value) {
-          if (img.file) {
-            const url = await postAPI.uploadImage(img.file)
-            imageUrls.push(url)
-          } else {
-            imageUrls.push(img.url)
+        let imageUrls = []
+        if (previewImages.value.length > 0) {
+          for (const img of previewImages.value) {
+            // 1. presigned URL 요청
+            const presignedUrl = await postAPI.getPresignedUrl(img.file.name, img.file.type)
+
+            // 2. S3에 직접 업로드
+            await axios.put(presignedUrl, img.file, {
+              headers: { 'Content-Type': img.file.type },
+            })
+
+            // 3. 업로드된 최종 접근 URL (쿼리스트링 제거)
+            const finalUrl = presignedUrl.split('?')[0]
+            imageUrls.push(finalUrl)
           }
         }
 
@@ -224,11 +233,7 @@ export default {
           <a-col :xs="24" :md="12">
             <a-form-item label="카테고리 *" name="category">
               <a-select v-model:value="form.category" placeholder="선택하세요" size="large">
-                <a-select-option
-                  v-for="c in categories"
-                  :key="c.value"
-                  :value="c.value"
-                >
+                <a-select-option v-for="c in categories" :key="c.value" :value="c.value">
                   {{ c.label }}
                 </a-select-option>
               </a-select>
@@ -247,9 +252,7 @@ export default {
                 />
                 <span class="currency-suffix">원</span>
               </a-input-group>
-              <div class="form-hint">
-                {{ amountDisplay }}원 (100원 단위, 최대 10억)
-              </div>
+              <div class="form-hint">{{ amountDisplay }}원 (100원 단위, 최대 10억)</div>
             </a-form-item>
           </a-col>
         </a-row>
@@ -296,11 +299,7 @@ export default {
           />
 
           <div v-if="previewImages.length > 0" class="preview-images">
-            <div
-              v-for="(image, index) in previewImages"
-              :key="index"
-              class="preview-image"
-            >
+            <div v-for="(image, index) in previewImages" :key="index" class="preview-image">
               <img :src="image.url" :alt="image.name" />
               <button type="button" class="remove-image" @click="removeImage(index)">×</button>
             </div>
@@ -345,7 +344,7 @@ export default {
   border-bottom: 2px solid #f0f0f0;
 }
 .header h1 {
-  color: #00C851;
+  color: #00c851;
   font-size: 28px;
   font-weight: 600;
 }
@@ -373,7 +372,7 @@ export default {
   cursor: pointer;
 }
 .image-upload-area:hover {
-  border-color: #00C851;
+  border-color: #00c851;
 }
 .upload-hint {
   font-size: 12px;
@@ -431,8 +430,8 @@ export default {
   opacity: 0.6;
 }
 :deep(.ant-btn-primary) {
-  background-color: #00C851;
-  border-color: #00C851;
+  background-color: #00c851;
+  border-color: #00c851;
 }
 :deep(.ant-btn-primary:hover),
 :deep(.ant-btn-primary:focus) {

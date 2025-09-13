@@ -276,7 +276,7 @@ const categories = [
         <!-- 내용 -->
         <a-form-item label="내용" name="content" required>
           <a-textarea v-model:value="form.content" :auto-size="{ minRows: 10, maxRows: 20 }" />
-          <div class="character-count">{{ form.content.length }} / 2000자</div>
+          <div class="character-count">{{ form.content.length }} / 5000자</div>
         </a-form-item>
 
         <!-- 이미지 업로드 -->
