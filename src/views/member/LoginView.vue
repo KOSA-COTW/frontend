@@ -154,6 +154,7 @@ const handleSubmit = async () => {
       headers: {
         'Content-Type': 'application/json'
       },
+      withCredentials: true,
       transformRequest: [(data) => {
         return JSON.stringify(data);
       }]
