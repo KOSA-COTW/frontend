@@ -6,6 +6,7 @@ const instance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // 반드시 필요: refresh token 쿠키 포함
 });
 
 // 요청 인터셉터
