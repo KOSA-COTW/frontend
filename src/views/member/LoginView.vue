@@ -164,7 +164,7 @@ const handleSubmit = async () => {
     const token = response.headers['authorization']
 
     // pinia에 반영
-    auth.login(token)
+    await auth.login(token)
       if (token) {
         message.success('로그인에 성공하셨습니다.');
 
