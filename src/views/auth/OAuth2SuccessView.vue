@@ -45,7 +45,7 @@ onMounted(async () => {
   email.value = q.get('email') || ''
 
   if (access && !error.value) {
-    auth.login(access)
+    await auth.login(access)
     window.history.replaceState({}, document.title, '/oauth2/success') // 해시 제거
     router.replace('/')
     return

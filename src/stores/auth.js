@@ -29,7 +29,7 @@ export const useAuthStore = defineStore('auth', {
   },
   actions: {
     // 로그인 성공 시 호출
-    login(token, user = null) {
+    async login(token, user = null) {
       if (!token) {
         console.warn('No token provided to login()')
         return
@@ -46,6 +46,10 @@ export const useAuthStore = defineStore('auth', {
       } else {
         this.user = user
       }
+      // persist 반영까지 기다리도록 Promise 반환
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(), 0)
+      })
     },
     // 앱 시작 시(또는 새로고침 시) 수동 복원: persist 미사용 시에만 필요
     hydrateFromStorage() {
